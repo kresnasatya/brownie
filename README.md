@@ -1,6 +1,8 @@
 # Brownie
 
-Practical learn how to make browser engine by read Browser Engineering book
+Practical learn how to make browser engine by read Browser Engineering book.
+
+REMINDER: This repo is not for how to make sophisticated browser engine. Instead, it teach us how browser engine is designed.
 
 ## Why I create this repo?
 
