@@ -9,7 +9,6 @@ Then, export homebrew bin to PATH in order to make separated python & python-tk 
     export PATH="/opt/homebrew/bin:$PATH"
 """
 
-from pydoc import text
 import tkinter
 from lab01 import show, URL
 
@@ -30,12 +29,28 @@ def lex(body):
 WIDTH, HEIGHT = 800, 600
 HSTEP, VSTEP = 13, 18
 
+SCROLL_STEP = 100
+
+
+def layout(text):
+    display_list = []
+    cursor_x, cursor_y = HSTEP, VSTEP
+    for c in text:
+        display_list.append((cursor_x, cursor_y, c))
+        cursor_x += HSTEP
+        if cursor_x >= WIDTH - HSTEP:
+            cursor_y += VSTEP
+            cursor_x = HSTEP
+    return display_list
+
 
 class Browser:
     def __init__(self):
         self.window = tkinter.Tk()
         self.canvas = tkinter.Canvas(self.window, width=WIDTH, height=HEIGHT)
         self.canvas.pack()
+        self.scroll = 0
+        self.window.bind("<Down>", self.scrolldown)
 
     def load(self, url):
         body = url.request()
@@ -43,13 +58,24 @@ class Browser:
         # self.canvas.create_rectangle(10, 20, 400, 300)
         # self.canvas.create_oval(100, 100, 150, 150)
         # self.canvas.create_text(200, 150, text="Hi!")
-        cursor_x, cursor_y = HSTEP, VSTEP
-        for c in text:
-            self.canvas.create_text(cursor_x, cursor_y, text=c)
-            cursor_x += HSTEP
-            if cursor_x >= WIDTH - HSTEP:
-                cursor_y += VSTEP
-                cursor_x = HSTEP
+        # cursor_x, cursor_y = HSTEP, VSTEP
+        # for c in text:
+        #     self.canvas.create_text(cursor_x, cursor_y, text=c)
+        #     cursor_x += HSTEP
+        #     if cursor_x >= WIDTH - HSTEP:
+        #         cursor_y += VSTEP
+        #         cursor_x = HSTEP
+        self.display_list = layout(text)
+        self.draw()
+
+    def draw(self):
+        self.canvas.delete("all")
+        for x, y, c in self.display_list:
+            self.canvas.create_text(x, y - self.scroll, text=c)
+
+    def scrolldown(self, e):
+        self.scroll += SCROLL_STEP
+        self.draw()
 
 
 if __name__ == "__main__":
@@ -60,5 +86,5 @@ if __name__ == "__main__":
 
 """
 To run this program use Python 3:
-    python3 lab02.py https://example.org/
+    python3 lab02.py https://browser.engineering/examples/xiyouji.html
 """
