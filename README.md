@@ -1,12 +1,17 @@
 # Brownie
 
-Learn by doing how to build browser engine by read Browser Engineering book.
+Learn by doing how to build browser engine by read [Browser Engineering](https://browser.engineering) book.
 
 REMINDER: This repo is not for how to make sophisticated browser engine. Instead, it teach us how browser engine is designed.
 
 ## Why I create this repo?
 
-The Browser Engineering book doesn't have a "diff" code in each section. This repo helps this case.
+The Browser Engineering book doesn't have a "diff" code in each section.
+
+```diff
+- This line has been removed.
++ This line has been added.
+```
 
 You can read the "diff" code by browse the commit in this repo.
 
