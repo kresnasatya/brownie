@@ -67,10 +67,16 @@ class Browser:
         #         cursor_y += VSTEP
         #         cursor_x = HSTEP
         # self.display_list = layout(text)
-        bi_times = tkinter.font.Font(
-            family="Times", size=16, weight="bold", slant="italic"
-        )
-        self.canvas.create_text(200, 100, text="Hi!", font=bi_times)
+        font1 = tkinter.font.Font(family="Times", size=16)
+        font2 = tkinter.font.Font(family="Times", size=16, slant="italic")
+        # x, y = 200, 200
+        # self.canvas.create_text(x, y, text="Hello, ", font=font1)
+        # x += font1.measure("Hello, ")
+        # self.canvas.create_text(x, y, text="world!", font=font2)
+        x, y = 200, 225
+        self.canvas.create_text(x, y, text="Hello, ", font=font1, anchor="nw")
+        x += font1.measure("Hello, ")
+        self.canvas.create_text(x, y, text="overlapping!", font=font2, anchor="nw")
         # self.draw()
 
     def draw(self):
@@ -80,7 +86,7 @@ class Browser:
                 continue
             if y + VSTEP < self.scroll:
                 continue
-            self.canvas.create_text(x, y - self.scroll, text=c)
+            self.canvas.create_text(x, y - self.scroll, text=c, anchor="nw")
 
     def scrolldown(self, e):
         self.scroll += SCROLL_STEP
