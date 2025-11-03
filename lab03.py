@@ -10,6 +10,7 @@ Then, export homebrew bin to PATH in order to make separated python & python-tk 
 """
 
 import tkinter
+import tkinter.font
 from lab01 import URL
 
 
@@ -65,8 +66,12 @@ class Browser:
         #     if cursor_x >= WIDTH - HSTEP:
         #         cursor_y += VSTEP
         #         cursor_x = HSTEP
-        self.display_list = layout(text)
-        self.draw()
+        # self.display_list = layout(text)
+        bi_times = tkinter.font.Font(
+            family="Times", size=16, weight="bold", slant="italic"
+        )
+        self.canvas.create_text(200, 100, text="Hi!", font=bi_times)
+        # self.draw()
 
     def draw(self):
         self.canvas.delete("all")
@@ -90,5 +95,5 @@ if __name__ == "__main__":
 
 """
 To run this program use Python 3:
-    python3 lab02.py https://browser.engineering/examples/xiyouji.html
+    python3 lab03.py https://browser.engineering/text.html
 """
