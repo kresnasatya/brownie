@@ -10,7 +10,7 @@ Then, export homebrew bin to PATH in order to make separated python & python-tk 
 """
 
 import tkinter
-from lab01 import show, URL
+from lab01 import URL
 
 
 def lex(body):
