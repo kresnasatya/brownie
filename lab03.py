@@ -12,6 +12,7 @@ Then, export homebrew bin to PATH in order to make separated python & python-tk 
 import tkinter
 import tkinter.font
 from lab01 import URL
+from lab02 import HSTEP, VSTEP, WIDTH, HEIGHT
 
 
 def lex(body):
@@ -27,21 +28,20 @@ def lex(body):
     return text
 
 
-WIDTH, HEIGHT = 800, 600
-HSTEP, VSTEP = 13, 18
-
 SCROLL_STEP = 100
 
 
 def layout(text):
+    font = tkinter.font.Font()
     display_list = []
     cursor_x, cursor_y = HSTEP, VSTEP
-    for c in text:
-        display_list.append((cursor_x, cursor_y, c))
-        cursor_x += HSTEP
-        if cursor_x >= WIDTH - HSTEP:
-            cursor_y += VSTEP
+    for word in text.split():
+        w = font.measure(word)
+        if cursor_x + w > WIDTH - HSTEP:
+            cursor_y += font.metrics("linespace") * 1.25
             cursor_x = HSTEP
+        display_list.append((cursor_x, cursor_y, word))
+        cursor_x += w + font.measure(" ")
     return display_list
 
 
@@ -56,28 +56,8 @@ class Browser:
     def load(self, url):
         body = url.request()
         text = lex(body)
-        # self.canvas.create_rectangle(10, 20, 400, 300)
-        # self.canvas.create_oval(100, 100, 150, 150)
-        # self.canvas.create_text(200, 150, text="Hi!")
-        # cursor_x, cursor_y = HSTEP, VSTEP
-        # for c in text:
-        #     self.canvas.create_text(cursor_x, cursor_y, text=c)
-        #     cursor_x += HSTEP
-        #     if cursor_x >= WIDTH - HSTEP:
-        #         cursor_y += VSTEP
-        #         cursor_x = HSTEP
-        # self.display_list = layout(text)
-        font1 = tkinter.font.Font(family="Times", size=16)
-        font2 = tkinter.font.Font(family="Times", size=16, slant="italic")
-        # x, y = 200, 200
-        # self.canvas.create_text(x, y, text="Hello, ", font=font1)
-        # x += font1.measure("Hello, ")
-        # self.canvas.create_text(x, y, text="world!", font=font2)
-        x, y = 200, 225
-        self.canvas.create_text(x, y, text="Hello, ", font=font1, anchor="nw")
-        x += font1.measure("Hello, ")
-        self.canvas.create_text(x, y, text="overlapping!", font=font2, anchor="nw")
-        # self.draw()
+        self.display_list = layout(text)
+        self.draw()
 
     def draw(self):
         self.canvas.delete("all")
