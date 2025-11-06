@@ -15,33 +15,72 @@ from lab01 import URL
 from lab02 import HSTEP, VSTEP, WIDTH, HEIGHT
 
 
+class Text:
+    def __init__(self, text):
+        self.text = text
+
+
+class Tag:
+    def __init__(self, tag):
+        self.tag = tag
+
+
 def lex(body):
-    text = ""
+    out = []
+    buffer = ""
     in_tag = False
     for c in body:
         if c == "<":
             in_tag = True
+            if buffer:
+                out.append(Text(buffer))
+            buffer = ""
         elif c == ">":
             in_tag = False
-        elif not in_tag:
-            text += c
-    return text
+            out.append(Tag(buffer))
+            buffer = ""
+        else:
+            buffer += c
+    if not in_tag and buffer:
+        out.append(Text(buffer))
+    return out
 
 
 SCROLL_STEP = 100
 
 
-def layout(text):
+def layout(tokens):
     font = tkinter.font.Font()
     display_list = []
     cursor_x, cursor_y = HSTEP, VSTEP
-    for word in text.split():
-        w = font.measure(word)
-        if cursor_x + w > WIDTH - HSTEP:
-            cursor_y += font.metrics("linespace") * 1.25
-            cursor_x = HSTEP
-        display_list.append((cursor_x, cursor_y, word))
-        cursor_x += w + font.measure(" ")
+    weight = "normal"
+    style = "roman"
+    for tok in tokens:
+        if isinstance(tok, Text):
+            for word in tok.text.split():
+                font = tkinter.font.Font(size=16, weight=weight, slant=style)
+                w = font.measure(word)
+                if cursor_x + w > WIDTH - HSTEP:
+                    cursor_y += font.metrics("linespace") * 1.25
+                    cursor_x = HSTEP
+                display_list.append((cursor_x, cursor_y, word, font))
+                cursor_x += w + font.measure(" ")
+        elif tok.tag == "i":
+            style = "italic"
+        elif tok.tag == "/i":
+            style = "roman"
+        elif tok.tag == "em":
+            style = "italic"
+        elif tok.tag == "/em":
+            style = "roman"
+        elif tok.tag == "b":
+            weight = "bold"
+        elif tok.tag == "/b":
+            weight = "normal"
+        elif tok.tag == "strong":
+            weight = "bold"
+        elif tok.tag == "/strong":
+            weight = "normal"
     return display_list
 
 
@@ -61,12 +100,14 @@ class Browser:
 
     def draw(self):
         self.canvas.delete("all")
-        for x, y, c in self.display_list:
+        for x, y, word, font in self.display_list:
             if y > self.scroll + HEIGHT:
                 continue
             if y + VSTEP < self.scroll:
                 continue
-            self.canvas.create_text(x, y - self.scroll, text=c, anchor="nw")
+            self.canvas.create_text(
+                x, y - self.scroll, text=word, font=font, anchor="nw"
+            )
 
     def scrolldown(self, e):
         self.scroll += SCROLL_STEP
@@ -82,4 +123,7 @@ if __name__ == "__main__":
 """
 To run this program use Python 3:
     python3 lab03.py https://browser.engineering/text.html
+OR
+    python3 -m http.server 8000 -d ./static-site
+    python3 lab03.py http://localhost:8000
 """
