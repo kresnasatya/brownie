@@ -11,8 +11,9 @@ Then, export homebrew bin to PATH in order to make separated python & python-tk 
 
 import tkinter
 import tkinter.font
+
 from lab01 import URL
-from lab02 import HSTEP, VSTEP, WIDTH, HEIGHT
+from lab02 import HEIGHT, HSTEP, VSTEP, WIDTH
 
 
 class Text:
@@ -49,39 +50,53 @@ def lex(body):
 SCROLL_STEP = 100
 
 
-def layout(tokens):
-    font = tkinter.font.Font()
-    display_list = []
-    cursor_x, cursor_y = HSTEP, VSTEP
-    weight = "normal"
-    style = "roman"
-    for tok in tokens:
+class Layout:
+    def __init__(self, tokens):
+        self.display_list = []
+        self.cursor_x, self.cursor_y = HSTEP, VSTEP
+        self.weight = "normal"
+        self.style = "roman"
+        self.size = 12
+        for tok in tokens:
+            self.token(tok)
+
+    def token(self, tok):
         if isinstance(tok, Text):
             for word in tok.text.split():
-                font = tkinter.font.Font(size=16, weight=weight, slant=style)
-                w = font.measure(word)
-                if cursor_x + w > WIDTH - HSTEP:
-                    cursor_y += font.metrics("linespace") * 1.25
-                    cursor_x = HSTEP
-                display_list.append((cursor_x, cursor_y, word, font))
-                cursor_x += w + font.measure(" ")
+                self.word(word)
         elif tok.tag == "i":
-            style = "italic"
+            self.style = "italic"
         elif tok.tag == "/i":
-            style = "roman"
+            self.style = "roman"
         elif tok.tag == "em":
-            style = "italic"
+            self.style = "italic"
         elif tok.tag == "/em":
-            style = "roman"
+            self.style = "roman"
         elif tok.tag == "b":
-            weight = "bold"
+            self.weight = "bold"
         elif tok.tag == "/b":
-            weight = "normal"
+            self.weight = "normal"
         elif tok.tag == "strong":
-            weight = "bold"
+            self.weight = "bold"
         elif tok.tag == "/strong":
-            weight = "normal"
-    return display_list
+            self.weight = "normal"
+        elif tok.tag == "small":
+            self.size -= 2
+        elif tok.tag == "/small":
+            self.size += 2
+        elif tok.tag == "big":
+            self.size += 4
+        elif tok.tag == "/big":
+            self.size -= 4
+
+    def word(self, word):
+        font = tkinter.font.Font(size=self.size, weight=self.weight, slant=self.style)
+        w = font.measure(word)
+        if self.cursor_x + w > WIDTH - HSTEP:
+            self.cursor_y += font.metrics("linespace") * 1.25
+            self.cursor_x = HSTEP
+        self.display_list.append((self.cursor_x, self.cursor_y, word, font))
+        self.cursor_x += w + font.measure(" ")
 
 
 class Browser:
@@ -94,8 +109,8 @@ class Browser:
 
     def load(self, url):
         body = url.request()
-        text = lex(body)
-        self.display_list = layout(text)
+        tokens = lex(body)
+        self.display_list = Layout(tokens).display_list
         self.draw()
 
     def draw(self):
