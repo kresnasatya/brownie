@@ -13,8 +13,8 @@ import tkinter
 
 from lab01 import URL
 from lab02 import HSTEP, VSTEP
-from lab03 import Browser as Lab03Browser
-from lab03 import Layout as Lab03Layout
+from lab04 import Browser as Lab04Browser
+from lab04 import Layout as Lab04BlockLayout
 
 
 class Text:
@@ -167,15 +167,34 @@ class HTMLParser:
                 break
 
 
-class Layout(Lab03Layout):
-    def __init__(self, tree):
+class DocumentLayout:
+    def __init__(self, node):
+        self.node = node
+        self.parent = None
+        self.children = []
+
+    def layout(self):
+        child = BlockLayout(self.node, self, None)
+        self.children.append(child)
+        child.layout()
+        self.display_list = child.display_list
+
+
+class BlockLayout(Lab04BlockLayout):
+    def __init__(self, node, parent, previous):
+        self.node = node
+        self.parent = parent
+        self.previous = previous
+        self.children = []
+
+    def layout(self):
         self.display_list = []
         self.cursor_x, self.cursor_y = HSTEP, VSTEP
         self.weight = "normal"
         self.style = "roman"
         self.size = 12
         self.line = []
-        self.recurse(tree)
+        self.recurse(self.node)
         self.flush()
 
     def open_tag(self, tag):
@@ -223,11 +242,13 @@ class Layout(Lab03Layout):
             self.close_tag(tree.tag)
 
 
-class Browser(Lab03Browser):
+class Browser(Lab04Browser):
     def load(self, url):
         body = url.request()
         self.nodes = HTMLParser(body).parse()
-        self.display_list = Layout(self.nodes).display_list
+        self.document = DocumentLayout(self.nodes)
+        self.document.layout()
+        self.display_list = self.document.display_list
         self.draw()
 
 
@@ -239,8 +260,8 @@ if __name__ == "__main__":
 
 """
 To run this program use Python 3:
-    python3 lab04.py https://browser.engineering/html.html
+    python3 lab05.py https://browser.engineering/layout.html
 OR
     python3 -m http.server 8000 -d ./static-site
-    python3 lab04.py http://localhost:8000
+    python3 lab05.py http://localhost:8000
 """
