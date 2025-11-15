@@ -16,6 +16,46 @@ from lab02 import HSTEP, VSTEP
 from lab04 import Browser as Lab04Browser
 from lab04 import Layout as Lab04BlockLayout
 
+BLOCK_ELEMENTS = [
+    "html",
+    "body",
+    "article",
+    "section",
+    "nav",
+    "aside",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hgroup",
+    "header",
+    "footer",
+    "address",
+    "p",
+    "hr",
+    "pre",
+    "blockquote",
+    "ol",
+    "ul",
+    "menu",
+    "li",
+    "dl",
+    "dt",
+    "dd",
+    "figure",
+    "figcaption",
+    "main",
+    "div",
+    "table",
+    "form",
+    "fieldset",
+    "legend",
+    "details",
+    "summary",
+]
+
 
 class Text:
     def __init__(self, text, parent):
@@ -179,6 +219,9 @@ class DocumentLayout:
         child.layout()
         self.display_list = child.display_list
 
+    def __repr__(self):
+        return "DocumentLayout()"
+
 
 class BlockLayout(Lab04BlockLayout):
     def __init__(self, node, parent, previous):
@@ -186,16 +229,32 @@ class BlockLayout(Lab04BlockLayout):
         self.parent = parent
         self.previous = previous
         self.children = []
+        self.display_list = []
+
+    def __repr__(self):
+        return f"BlockLayout({self.node}, mode={self.layout_mode()})"
 
     def layout(self):
-        self.display_list = []
-        self.cursor_x, self.cursor_y = HSTEP, VSTEP
-        self.weight = "normal"
-        self.style = "roman"
-        self.size = 12
-        self.line = []
-        self.recurse(self.node)
-        self.flush()
+        mode = self.layout_mode()
+        if mode == "block":
+            previous = None
+            for child in self.node.children:
+                next = BlockLayout(child, self, previous)
+                self.children.append(next)
+                previous = next
+        else:
+            self.cursor_x = 0
+            self.cursor_y = 0
+            self.weight = "normal"
+            self.style = "roman"
+            self.size = 12
+
+            self.line = []
+            self.recurse(self.node)
+            self.flush()
+
+        for child in self.children:
+            child.layout()
 
     def open_tag(self, tag):
         # print("tag: ", tag)
@@ -241,6 +300,28 @@ class BlockLayout(Lab04BlockLayout):
                 self.recurse(child)
             self.close_tag(tree.tag)
 
+    def layout_intermediate(self):
+        previous = None
+        for child in self.node.children:
+            next = BlockLayout(child, self, previous)
+            self.children.append(next)
+            previous = next
+
+    def layout_mode(self):
+        if isinstance(self.node, Text):
+            return "inline"
+        elif any(
+            [
+                isinstance(child, Element) and child.tag in BLOCK_ELEMENTS
+                for child in self.node.children
+            ]
+        ):
+            return "block"
+        elif self.node.children:
+            return "inline"
+        else:
+            return "block"
+
 
 class Browser(Lab04Browser):
     def load(self, url):
@@ -249,6 +330,11 @@ class Browser(Lab04Browser):
         self.document = DocumentLayout(self.nodes)
         self.document.layout()
         self.display_list = self.document.display_list
+
+        # Print the layout tree to see the BlockLayout structure
+        print("Layout Tree:")
+        print_tree(self.document)
+
         self.draw()
 
 
