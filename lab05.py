@@ -12,7 +12,7 @@ Then, export homebrew bin to PATH in order to make separated python & python-tk 
 import tkinter
 
 from lab01 import URL
-from lab02 import HSTEP, VSTEP, WIDTH
+from lab02 import HEIGHT, HSTEP, SCROLL_STEP, VSTEP, WIDTH
 from lab03 import get_font
 from lab04 import Browser as Lab04Browser
 from lab04 import Layout as Lab04Layout
@@ -77,6 +77,39 @@ class Element:
 
     def __repr__(self) -> str:
         return "<" + self.tag + ">"
+
+
+class DrawText:
+    def __init__(self, x1, y1, text, font):
+        self.top = y1
+        self.left = x1
+        self.text = text
+        self.font = font
+        self.bottom = y1 + font.metrics("linespace")
+
+    def execute(self, scroll, canvas):
+        canvas.create_text(
+            self.left, self.top - scroll, text=self.text, font=self.font, anchor="nw"
+        )
+
+
+class DrawRect:
+    def __init__(self, x1, y1, x2, y2, color) -> None:
+        self.top = y1
+        self.left = x1
+        self.bottom = y2
+        self.right = x2
+        self.color = color
+
+    def execute(self, scroll, canvas):
+        canvas.create_rectangle(
+            self.left,
+            self.top - scroll,
+            self.right,
+            self.bottom - scroll,
+            width=0,
+            fill=self.color,
+        )
 
 
 def print_tree(node, indent=0):
@@ -283,7 +316,15 @@ class BlockLayout(Lab04Layout):
             self.height = self.cursor_y
 
     def paint(self):
-        return self.display_list
+        cmds = []
+        if isinstance(self.node, Element) and self.node.tag == "pre":
+            x2, y2 = self.x + self.width, self.y + self.height
+            rect = DrawRect(self.x, self.y, x2, y2, "gray")
+            cmds.append(rect)
+        if self.layout_mode() == "inline":
+            for x, y, word, font in self.display_list:
+                cmds.append(DrawText(x, y, word, font))
+        return cmds
 
     def word(self, word):
         font = get_font(self.size, self.weight, self.style)
@@ -396,6 +437,20 @@ class Browser(Lab04Browser):
 
         paint_tree(self.document, self.display_list)
 
+        self.draw()
+
+    def draw(self):
+        self.canvas.delete("all")
+        for cmd in self.display_list:
+            if cmd.top > self.scroll + HEIGHT:
+                continue
+            if cmd.bottom < self.scroll:
+                continue
+            cmd.execute(self.scroll, self.canvas)
+
+    def scrolldown(self, e):
+        max_y = max(self.document.height + 2 * VSTEP - HEIGHT, 0)
+        self.scroll = min(self.scroll + SCROLL_STEP, max_y)
         self.draw()
 
 
