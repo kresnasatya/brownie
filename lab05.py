@@ -12,7 +12,8 @@ Then, export homebrew bin to PATH in order to make separated python & python-tk 
 import tkinter
 
 from lab01 import URL
-from lab02 import HSTEP, VSTEP
+from lab02 import HSTEP, VSTEP, WIDTH
+from lab03 import get_font
 from lab04 import Browser as Lab04Browser
 from lab04 import Layout as Lab04Layout
 
@@ -212,12 +213,22 @@ class DocumentLayout:
         self.node = node
         self.parent = None
         self.children = []
+        self.x = None
+        self.y = None
+        self.width = None
+        self.height = None
 
     def layout(self):
         child = BlockLayout(self.node, self, None)
         self.children.append(child)
+        self.width = WIDTH - 2 * HSTEP
+        self.x = HSTEP
+        self.y = VSTEP
         child.layout()
-        self.display_list = child.display_list
+        self.height = child.height
+
+    def paint(self):
+        return []
 
     def __repr__(self):
         return "DocumentLayout()"
@@ -229,12 +240,22 @@ class BlockLayout(Lab04Layout):
         self.parent = parent
         self.previous = previous
         self.children = []
+        self.x = None
+        self.y = None
+        self.width = None
+        self.height = None
         self.display_list = []
 
     def __repr__(self):
         return f"BlockLayout({self.node}, mode={self.layout_mode()})"
 
     def layout(self):
+        self.x = self.parent.x
+        self.width = self.parent.width
+        if self.previous:
+            self.y = self.previous.y + self.previous.height
+        else:
+            self.y = self.parent.y
         mode = self.layout_mode()
         if mode == "block":
             previous = None
@@ -255,6 +276,37 @@ class BlockLayout(Lab04Layout):
 
         for child in self.children:
             child.layout()
+
+        if mode == "block":
+            self.height = sum([child.height for child in self.children])
+        else:
+            self.height = self.cursor_y
+
+    def paint(self):
+        return self.display_list
+
+    def word(self, word):
+        font = get_font(self.size, self.weight, self.style)
+        w = font.measure(word)
+        if self.cursor_x + w > self.width:
+            self.flush()
+        self.line.append((self.cursor_x, word, font))
+        self.cursor_x += w + font.measure(" ")
+
+    def flush(self):
+        if not self.line:
+            return
+        metrics = [font.metrics() for x, word, font in self.line]
+        max_ascent = max([metric["ascent"] for metric in metrics])
+        baseline = self.cursor_y + 1.25 * max_ascent
+        for rel_x, word, font in self.line:
+            x = self.x + rel_x
+            y = self.y + baseline - font.metrics("ascent")
+            self.display_list.append((x, y, word, font))
+        max_descent = max([metric["descent"] for metric in metrics])
+        self.cursor_y = baseline + 1.25 * max_descent
+        self.cursor_x = 0
+        self.line = []
 
     def open_tag(self, tag):
         # print("tag: ", tag)
@@ -323,17 +375,26 @@ class BlockLayout(Lab04Layout):
             return "block"
 
 
+def paint_tree(layout_object, display_list):
+    display_list.extend(layout_object.paint())
+
+    for child in layout_object.children:
+        paint_tree(child, display_list)
+
+
 class Browser(Lab04Browser):
     def load(self, url):
         body = url.request()
         self.nodes = HTMLParser(body).parse()
         self.document = DocumentLayout(self.nodes)
         self.document.layout()
-        self.display_list = self.document.display_list
+        self.display_list = []
 
         # Print the layout tree to see the BlockLayout structure
         print("Layout Tree:")
         print_tree(self.document)
+
+        paint_tree(self.document, self.display_list)
 
         self.draw()
 
