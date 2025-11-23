@@ -14,7 +14,7 @@ import tkinter
 from lab01 import URL
 from lab02 import HSTEP, VSTEP
 from lab04 import Browser as Lab04Browser
-from lab04 import Layout as Lab04BlockLayout
+from lab04 import Layout as Lab04Layout
 
 BLOCK_ELEMENTS = [
     "html",
@@ -223,7 +223,7 @@ class DocumentLayout:
         return "DocumentLayout()"
 
 
-class BlockLayout(Lab04BlockLayout):
+class BlockLayout(Lab04Layout):
     def __init__(self, node, parent, previous):
         self.node = node
         self.parent = parent
