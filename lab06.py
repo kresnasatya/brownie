@@ -323,7 +323,7 @@ class CSSParser:
                 rules.append((selector, body))
             except Exception:
                 why = self.ignore_until(["}"])
-                if why != "}":
+                if why == "}":
                     self.literal("}")
                     self.whitespace()
                 else:
