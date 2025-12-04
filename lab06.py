@@ -11,7 +11,7 @@ Then, export homebrew bin to PATH in order to make separated python & python-tk 
 
 import tkinter
 
-from lab01 import URL
+from lab01 import URL as Lab01URL
 from lab02 import HEIGHT, HSTEP, SCROLL_STEP, VSTEP, WIDTH
 from lab03 import get_font
 from lab04 import Browser as Lab04Browser
@@ -241,6 +241,13 @@ class HTMLParser:
                 break
 
 
+def tree_to_list(tree, list):
+    list.append(tree)
+    for child in tree.children:
+        tree_to_list(child, list)
+    return list
+
+
 class CSSParser:
     def __init__(self, s) -> None:
         self.s = s
@@ -354,14 +361,19 @@ class DescendantSelector:
         return False
 
 
-def style(node):
+def style(node, rules):
     node.style = {}
+    for selector, body in rules:
+        if not selector.matches(node):
+            continue
+        for property, value in body.items():
+            node.style[property] = value
     if isinstance(node, Element) and "style" in node.attributes:
         pairs = CSSParser(node.attributes["style"]).body()
         for property, value in pairs.items():
             node.style[property] = value
     for child in node.children:
-        style(child)
+        style(child, rules)
 
 
 class DocumentLayout:
@@ -547,11 +559,47 @@ def paint_tree(layout_object, display_list):
         paint_tree(child, display_list)
 
 
+DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
+
+
+class URL(Lab01URL):
+    def resolve(self, url):
+        if "://" in url:
+            return URL(url)
+        if not url.startswith("/"):
+            dir, _ = self.path.rsplit("/", 1)
+            while url.startswith("../"):
+                _, url = url.split("/", 1)
+                if "/" in dir:
+                    dir, _ = dir.rsplit("/", 1)
+            url = dir + "/" + url
+        if url.startswith("//"):
+            return URL(self.scheme + ":" + url)
+        else:
+            return URL(self.scheme + "://" + self.host + ":" + str(self.port) + url)
+
+
 class Browser(Lab04Browser):
     def load(self, url):
         body = url.request()
         self.nodes = HTMLParser(body).parse()
-        style(self.nodes)
+        rules = DEFAULT_STYLE_SHEET.copy()
+        links = [
+            node.attributes["href"]
+            for node in tree_to_list(self.nodes, [])
+            if isinstance(node, Element)
+            and node.tag == "link"
+            and node.attributes.get("rel") == "stylesheet"
+            and "href" in node.attributes
+        ]
+        for link in links:
+            style_url = url.resolve(link)
+            try:
+                body = style_url.request()
+            except:
+                continue
+            rules.extend(CSSParser(body).parse())
+        style(self.nodes, rules)
         self.document = DocumentLayout(self.nodes)
         self.document.layout()
         self.display_list = []
@@ -582,7 +630,7 @@ class Browser(Lab04Browser):
 if __name__ == "__main__":
     import sys
 
-    Browser().load(URL(sys.argv[1]))
+    Browser().load(Lab01URL(sys.argv[1]))
     tkinter.mainloop()
 
 """
