@@ -15,47 +15,23 @@ from lab01 import URL as Lab01URL
 from lab02 import HEIGHT, HSTEP, SCROLL_STEP, VSTEP, WIDTH
 from lab03 import get_font
 from lab04 import Browser as Lab04Browser
-from lab04 import Layout as Lab04Layout
 
-BLOCK_ELEMENTS = [
-    "html",
-    "body",
-    "article",
-    "section",
-    "nav",
-    "aside",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "hgroup",
-    "header",
-    "footer",
-    "address",
-    "p",
-    "hr",
-    "pre",
-    "blockquote",
-    "ol",
-    "ul",
-    "menu",
-    "li",
-    "dl",
-    "dt",
-    "dd",
-    "figure",
-    "figcaption",
-    "main",
-    "div",
-    "table",
-    "form",
-    "fieldset",
-    "legend",
-    "details",
-    "summary",
-]
+
+class URL(Lab01URL):
+    def resolve(self, url):
+        if "://" in url:
+            return URL(url)
+        if not url.startswith("/"):
+            dir, _ = self.path.rsplit("/", 1)
+            while url.startswith("../"):
+                _, url = url.split("/", 1)
+                if "/" in dir:
+                    dir, _ = dir.rsplit("/", 1)
+            url = dir + "/" + url
+        if url.startswith("//"):
+            return URL(self.scheme + ":" + url)
+        else:
+            return URL(self.scheme + "://" + self.host + ":" + str(self.port) + url)
 
 
 class Text:
@@ -79,49 +55,17 @@ class Element:
         return "<" + self.tag + ">"
 
 
-class DrawText:
-    def __init__(self, x1, y1, text, font, color):
-        self.top = y1
-        self.left = x1
-        self.text = text
-        self.font = font
-        self.color = color
-        self.bottom = y1 + font.metrics("linespace")
-
-    def execute(self, scroll, canvas):
-        canvas.create_text(
-            self.left,
-            self.top - scroll,
-            text=self.text,
-            font=self.font,
-            anchor="nw",
-            fill=self.color,
-        )
-
-
-class DrawRect:
-    def __init__(self, x1, y1, x2, y2, color) -> None:
-        self.top = y1
-        self.left = x1
-        self.bottom = y2
-        self.right = x2
-        self.color = color
-
-    def execute(self, scroll, canvas):
-        canvas.create_rectangle(
-            self.left,
-            self.top - scroll,
-            self.right,
-            self.bottom - scroll,
-            width=0,
-            fill=self.color,
-        )
-
-
 def print_tree(node, indent=0):
     print(" " * indent, node)
     for child in node.children:
         print_tree(child, indent + 2)
+
+
+def tree_to_list(tree, list):
+    list.append(tree)
+    for child in tree.children:
+        tree_to_list(child, list)
+    return list
 
 
 class HTMLParser:
@@ -247,13 +191,6 @@ class HTMLParser:
                 break
 
 
-def tree_to_list(tree, list):
-    list.append(tree)
-    for child in tree.children:
-        tree_to_list(child, list)
-    return list
-
-
 class CSSParser:
     def __init__(self, s) -> None:
         self.s = s
@@ -344,11 +281,6 @@ class CSSParser:
         return rules
 
 
-def cascade_priority(rule):
-    selector, body = rule
-    return selector.priority
-
-
 class TagSelector:
     def __init__(self, tag):
         self.tag = tag
@@ -373,6 +305,8 @@ class DescendantSelector:
             node = node.parent
         return False
 
+
+DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 
 INHERITED_PROPERTIES = {
     "font-size": "16px",
@@ -408,6 +342,52 @@ def style(node, rules):
         node.style["font-size"] = str(node_pct * parent_px) + "px"
     for child in node.children:
         style(child, rules)
+
+
+def cascade_priority(rule):
+    selector, body = rule
+    return selector.priority
+
+
+BLOCK_ELEMENTS = [
+    "html",
+    "body",
+    "article",
+    "section",
+    "nav",
+    "aside",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "hgroup",
+    "header",
+    "footer",
+    "address",
+    "p",
+    "hr",
+    "pre",
+    "blockquote",
+    "ol",
+    "ul",
+    "menu",
+    "li",
+    "dl",
+    "dt",
+    "dd",
+    "figure",
+    "figcaption",
+    "main",
+    "div",
+    "table",
+    "form",
+    "fieldset",
+    "legend",
+    "details",
+    "summary",
+]
 
 
 class DocumentLayout:
@@ -592,31 +572,50 @@ class BlockLayout:
             return "block"
 
 
+class DrawText:
+    def __init__(self, x1, y1, text, font, color):
+        self.top = y1
+        self.left = x1
+        self.text = text
+        self.font = font
+        self.color = color
+        self.bottom = y1 + font.metrics("linespace")
+
+    def execute(self, scroll, canvas):
+        canvas.create_text(
+            self.left,
+            self.top - scroll,
+            text=self.text,
+            font=self.font,
+            anchor="nw",
+            fill=self.color,
+        )
+
+
+class DrawRect:
+    def __init__(self, x1, y1, x2, y2, color) -> None:
+        self.top = y1
+        self.left = x1
+        self.bottom = y2
+        self.right = x2
+        self.color = color
+
+    def execute(self, scroll, canvas):
+        canvas.create_rectangle(
+            self.left,
+            self.top - scroll,
+            self.right,
+            self.bottom - scroll,
+            width=0,
+            fill=self.color,
+        )
+
+
 def paint_tree(layout_object, display_list):
     display_list.extend(layout_object.paint())
 
     for child in layout_object.children:
         paint_tree(child, display_list)
-
-
-DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
-
-
-class URL(Lab01URL):
-    def resolve(self, url):
-        if "://" in url:
-            return URL(url)
-        if not url.startswith("/"):
-            dir, _ = self.path.rsplit("/", 1)
-            while url.startswith("../"):
-                _, url = url.split("/", 1)
-                if "/" in dir:
-                    dir, _ = dir.rsplit("/", 1)
-            url = dir + "/" + url
-        if url.startswith("//"):
-            return URL(self.scheme + ":" + url)
-        else:
-            return URL(self.scheme + "://" + self.host + ":" + str(self.port) + url)
 
 
 class Browser(Lab04Browser):
