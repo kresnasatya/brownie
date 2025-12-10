@@ -15,7 +15,7 @@ from lab01 import URL as Lab01URL
 from lab02 import HEIGHT, HSTEP, SCROLL_STEP, VSTEP, WIDTH
 from lab03 import get_font
 from lab04 import Browser as Lab04Browser
-from lab04 import Layout as Lab04Layout
+from lab04 import Element, HTMLParser, Text
 
 BLOCK_ELEMENTS = [
     "html",
@@ -56,27 +56,6 @@ BLOCK_ELEMENTS = [
     "details",
     "summary",
 ]
-
-
-class Text:
-    def __init__(self, text, parent):
-        self.text = text
-        self.children = []
-        self.parent = parent
-
-    def __repr__(self) -> str:
-        return repr(self.text)
-
-
-class Element:
-    def __init__(self, tag, attributes, parent):
-        self.tag = tag
-        self.attributes = attributes
-        self.children = []
-        self.parent = parent
-
-    def __repr__(self) -> str:
-        return "<" + self.tag + ">"
 
 
 class DrawText:
@@ -123,8 +102,6 @@ def print_tree(node, indent=0):
     for child in node.children:
         print_tree(child, indent + 2)
 
-
-class HTMLParser:
     def __init__(self, body):
         self.body = body
         self.unfinished = []
@@ -682,7 +659,7 @@ class Browser(Lab04Browser):
 if __name__ == "__main__":
     import sys
 
-    Browser().load(Lab01URL(sys.argv[1]))
+    Browser().load(URL(sys.argv[1]))
     tkinter.mainloop()
 
 """
