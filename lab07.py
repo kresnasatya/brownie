@@ -15,6 +15,7 @@ from lab01 import URL as Lab01URL
 from lab02 import HEIGHT, HSTEP, SCROLL_STEP, VSTEP, WIDTH
 from lab03 import get_font
 from lab04 import Browser as Lab04Browser
+from lab04 import Element, HTMLParser, Text
 
 
 class URL(Lab01URL):
@@ -34,27 +35,6 @@ class URL(Lab01URL):
             return URL(self.scheme + "://" + self.host + ":" + str(self.port) + url)
 
 
-class Text:
-    def __init__(self, text, parent):
-        self.text = text
-        self.children = []
-        self.parent = parent
-
-    def __repr__(self) -> str:
-        return repr(self.text)
-
-
-class Element:
-    def __init__(self, tag, attributes, parent):
-        self.tag = tag
-        self.attributes = attributes
-        self.children = []
-        self.parent = parent
-
-    def __repr__(self) -> str:
-        return "<" + self.tag + ">"
-
-
 def print_tree(node, indent=0):
     print(" " * indent, node)
     for child in node.children:
@@ -66,129 +46,6 @@ def tree_to_list(tree, list):
     for child in tree.children:
         tree_to_list(child, list)
     return list
-
-
-class HTMLParser:
-    def __init__(self, body):
-        self.body = body
-        self.unfinished = []
-
-    def parse(self):
-        text = ""
-        in_tag = False
-        for c in self.body:
-            if c == "<":
-                in_tag = True
-                if text:
-                    self.add_text(text)
-                text = ""
-            elif c == ">":
-                in_tag = False
-                self.add_tag(text)
-                text = ""
-            else:
-                text += c
-        if not in_tag and text:
-            self.add_text(text)
-        return self.finish()
-
-    def add_text(self, text):
-        if text.isspace():
-            return
-        self.implicit_tags(None)
-        parent = self.unfinished[-1]
-        node = Text(text, parent)
-        parent.children.append(node)
-
-    SELF_CLOSING_TAGS = [
-        "area",
-        "base",
-        "br",
-        "col",
-        "embed",
-        "hr",
-        "img",
-        "input",
-        "link",
-        "meta",
-        "param",
-        "source",
-        "track",
-        "wbr",
-    ]
-
-    def add_tag(self, tag):
-        tag, attributes = self.get_attributes(tag)
-        if tag.startswith("!"):
-            return
-        self.implicit_tags(tag)
-
-        if tag.startswith("/"):
-            if len(self.unfinished) == 1:
-                return
-            node = self.unfinished.pop()
-            parent = self.unfinished[-1]
-            parent.children.append(node)
-        elif tag in self.SELF_CLOSING_TAGS:
-            parent = self.unfinished[-1]
-            node = Element(tag, attributes, parent)
-            parent.children.append(node)
-        else:
-            parent = self.unfinished[-1] if self.unfinished else None
-            node = Element(tag, attributes, parent)
-            self.unfinished.append(node)
-
-    def get_attributes(self, text):
-        parts = text.split()
-        tag = parts[0].casefold()
-        attributes = {}
-        for attrpair in parts[1:]:
-            if "=" in attrpair:
-                key, value = attrpair.split("=", 1)
-                attributes[key.casefold()] = value
-                if len(value) > 2 and value[0] in ["'", '"']:
-                    value = value[1:-1]
-            else:
-                attributes[attrpair.casefold()] = ""
-        return tag, attributes
-
-    def finish(self):
-        if not self.unfinished:
-            self.implicit_tags(None)
-        while len(self.unfinished) > 1:
-            node = self.unfinished.pop()
-            parent = self.unfinished[-1]
-            parent.children.append(node)
-        return self.unfinished.pop()
-
-    HEAD_TAGS = [
-        "base",
-        "basefont",
-        "bgsound",
-        "noscript",
-        "link",
-        "meta",
-        "title",
-        "style",
-        "script",
-    ]
-
-    def implicit_tags(self, tag):
-        while True:
-            open_tags = [node.tag for node in self.unfinished]
-            if open_tags == [] and tag != "html":
-                self.add_tag("html")
-            elif open_tags == ["html"] and tag not in ["head", "body", "/html"]:
-                if tag in self.HEAD_TAGS:
-                    self.add_tag("head")
-                else:
-                    self.add_tag("body")
-            elif (
-                open_tags == ["html", "head"] and tag not in ["/head"] + self.HEAD_TAGS
-            ):
-                self.add_tag("/head")
-            else:
-                break
 
 
 class CSSParser:
@@ -669,8 +526,30 @@ class Browser(Lab04Browser):
         self.canvas.pack()
         self.scroll = 0
         self.window.bind("<Down>", self.scrolldown)
+        self.window.bind("<Button-1>", self.click)
+        self.url = None
+
+    def click(self, e):
+        x, y = e.x, e.y
+        y += self.scroll
+        objs = [
+            obj
+            for obj in tree_to_list(self.document, [])
+            if obj.x <= x < obj.x + obj.width and obj.y <= y < obj.y + obj.height
+        ]
+        if not objs:
+            return
+        elt = objs[-1].node
+        while elt:
+            if isinstance(elt, Text):
+                pass
+            elif elt.tag == "a" and "href" in elt.attributes:
+                url = self.url.resolve(elt.attributes["href"])
+                return self.load(url)
+            elt = elt.parent
 
     def load(self, url):
+        self.url = url
         body = url.request()
         self.nodes = HTMLParser(body).parse()
         rules = DEFAULT_STYLE_SHEET.copy()
@@ -695,8 +574,8 @@ class Browser(Lab04Browser):
         self.display_list = []
 
         # Print the layout tree to see the BlockLayout structure
-        print("Layout Tree:")
-        print_tree(self.document)
+        # print("Layout Tree:")
+        # print_tree(self.document)
 
         paint_tree(self.document, self.display_list)
 
@@ -720,13 +599,13 @@ class Browser(Lab04Browser):
 if __name__ == "__main__":
     import sys
 
-    Browser().load(Lab01URL(sys.argv[1]))
+    Browser().load(URL(sys.argv[1]))
     tkinter.mainloop()
 
 """
 To run this program use Python 3:
-    python3 lab06.py https://browser.engineering/styles.html
+    python3 lab07.py https://browser.engineering/chrome.html
 OR
     python3 -m http.server 8000 -d ./static-site
-    python3 lab06.py http://localhost:8000
+    python3 lab07.py http://localhost:8000
 """
