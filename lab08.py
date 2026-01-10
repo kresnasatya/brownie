@@ -15,7 +15,24 @@ from lab01 import URL as Lab01URL
 from lab02 import HEIGHT, HSTEP, SCROLL_STEP, VSTEP, WIDTH
 from lab03 import get_font
 from lab04 import Browser as Lab04Browser
-from lab04 import Element, HTMLParser, Text
+from lab04 import Element as Lab04Element
+from lab04 import Text as Lab04Text
+from lab04 import HTMLParser as Lab04HTMLParser
+
+
+class Element(Lab04Element):
+    def __init__(self, tag, attributes, parent):
+        self.tag = tag
+        self.attributes = attributes
+        self.children = []
+        self.parent = parent
+        self.style = {}
+        self.is_focused = False
+
+class Text(Lab04Text):
+    def __init__(self, text, parent):
+        super().__init__(text, parent)
+        self.is_focused = False
 
 
 class URL(Lab01URL):
@@ -54,6 +71,38 @@ def tree_to_list(tree, list):
     for child in tree.children:
         tree_to_list(child, list)
     return list
+
+class HTMLParser(Lab04HTMLParser):
+    # NOTE: I need to copy some methods from HTMLParser in lab04.py
+    # Because this class needs to reference the "Text" and "Element" class in lab08.py
+    def add_text(self, text):
+        if text.isspace():
+            return
+        self.implicit_tags(None)
+        parent = self.unfinished[-1]
+        node = Text(text, parent) # use Text class from lab08.py
+        parent.children.append(node)
+
+    def add_tag(self, tag):
+        tag, attributes = self.get_attributes(tag)
+        if tag.startswith("!"):
+            return
+        self.implicit_tags(tag)
+
+        if tag.startswith("/"):
+            if len(self.unfinished) == 1:
+                return
+            node = self.unfinished.pop()
+            parent = self.unfinished[-1]
+            parent.children.append(node)
+        elif tag in self.SELF_CLOSING_TAGS:
+            parent = self.unfinished[-1]
+            node = Element(tag, attributes, parent) # use Element class from lab08.py
+            parent.children.append(node)
+        else:
+            parent = self.unfinished[-1] if self.unfinished else None
+            node = Element(tag, attributes, parent) # use Element class from lab08.py
+            self.unfinished.append(node)
 
 
 class CSSParser:
@@ -401,7 +450,7 @@ class BlockLayout:
                 self.word(node, word)
         else:
             if node.tag == "br":
-                self.flush()
+                self.new_line()
             elif node.tag == "input" or node.tag == "button":
                 self.input(node)
             else:
@@ -567,6 +616,12 @@ class InputLayout:
                 print("Ignoring HTML contents inside button")
         color = self.node.style["color"]
         cmds.append(DrawText(self.x, self.y, text, self.font, color))
+
+        if self.node.is_focused:
+            cx = self.x + self.font.measure(text)
+            cmds.append(DrawLine(
+                cx, self.y, cx, self.y + self.height, "black", 1
+            ))
         return cmds
 
     def self_rect(self):
@@ -644,6 +699,7 @@ class Tab:
         self.url = None
         self.tab_height = tab_height
         self.history = []
+        self.focus = None
 
     def click(self, x, y):
         y += self.scroll
@@ -655,22 +711,31 @@ class Tab:
         if not objs:
             return
         elt = objs[-1].node
+        if self.focus:
+            self.focus.is_focused = False
         while elt:
             if isinstance(elt, Text):
                 pass
             elif elt.tag == "a" and "href" in elt.attributes:
                 url = self.url.resolve(elt.attributes["href"])
                 return self.load(url)
+            elif elt.tag == "input":
+                elt.attributes["value"] = ""
+                self.focus = elt
+                elt.is_focused = True
+                return self.render()
             elt = elt.parent
+        self.render()
 
-    def load(self, url):
+    def load(self, url, payload=None):
         print("The url", url)
         self.history.append(url)
         body = url.request()
         self.scroll = 0
         self.url = url
         self.nodes = HTMLParser(body).parse()
-        rules = DEFAULT_STYLE_SHEET.copy()
+
+        self.rules = DEFAULT_STYLE_SHEET.copy()
         links = [
             node.attributes["href"]
             for node in tree_to_list(self.nodes, [])
@@ -685,8 +750,11 @@ class Tab:
                 body = style_url.request()
             except:
                 continue
-            rules.extend(CSSParser(body).parse())
-        style(self.nodes, sorted(rules, key=cascade_priority))
+            self.rules.extend(CSSParser(body).parse())
+        self.render()
+
+    def render(self):
+        style(self.nodes, sorted(self.rules, key=cascade_priority))
         self.document = DocumentLayout(self.nodes)
         self.document.layout()
         self.display_list = []
@@ -714,6 +782,11 @@ class Tab:
             self.history.pop()
             back = self.history.pop()
             self.load(back)
+
+    def keypress(self, char):
+        if self.focus:
+            self.focus.attributes["value"] += char
+            self.render()
 
 
 class DrawLine:
@@ -892,11 +965,16 @@ class Chrome:
     def keypress(self, char):
         if self.focus == "address bar":
             self.address_bar += char
+            return True
+        return False
 
     def enter(self):
         if self.focus == "address bar":
             self.browser.active_tab.load(URL(self.address_bar))
             self.focus = None
+
+    def blur(self):
+        self.focus = None
 
 
 class Browser(Lab04Browser):
@@ -924,8 +1002,11 @@ class Browser(Lab04Browser):
 
     def handle_click(self, e):
         if e.y < self.chrome.bottom:
+            self.focus = None
             self.chrome.click(e.x, e.y)
         else:
+            self.focus = "content"
+            self.chrome.blur()
             tab_y = e.y - self.chrome.bottom
             self.active_tab.click(e.x, tab_y)
         self.draw()
@@ -935,8 +1016,11 @@ class Browser(Lab04Browser):
             return
         if not (0x20 <= ord(e.char) < 0x7F):
             return
-        self.chrome.keypress(e.char)
-        self.draw()
+        if self.chrome.keypress(e.char):
+            self.draw()
+        elif self.focus == "content":
+            self.active_tab.keypress(e.char)
+            self.draw()
 
     def handle_enter(self, e):
         self.chrome.enter()
