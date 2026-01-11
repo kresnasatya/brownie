@@ -1,3 +1,4 @@
+import dukpy
 import urllib.parse
 from dom_utils import VSTEP, SCROLL_STEP, tree_to_list, style, cascade_priority, paint_tree
 from html_parser import HTMLParser
@@ -90,6 +91,20 @@ class Tab:
             except:
                 continue
             self.rules.extend(CSSParser(body).parse())
+
+        scripts = [node.attributes["src"] for node
+            in tree_to_list(self.nodes, [])
+            if isinstance(node, Element)
+            and node.tag == "script"
+            and "src" in node.attributes]
+        for script in scripts:
+            script_url = url.resolve(script)
+            try:
+                body = script_url.request()
+            except:
+                continue
+            print("Script returned: ", dukpy.evaljs(body))
+
         self.render()
 
     def render(self):
