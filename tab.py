@@ -1,3 +1,4 @@
+import urllib.parse
 from dom_utils import VSTEP, SCROLL_STEP, tree_to_list, style, cascade_priority, paint_tree
 from html_parser import HTMLParser
 from css_parser import CSSParser
