@@ -19,8 +19,8 @@ You can read the "diff" code by browse the commit in this repo.
 
 ## How to run?
 
-To run the code program for example.
+> NOTE: This project use `uv`, an extremely fast Python package and project manager. Please visit [`uv` installation doc](https://docs.astral.sh/uv/getting-started/installation/).
 
 ```sh
-python3 main.py https://browser.engineering
+uv run main.py https://browser.engineering
 ```
