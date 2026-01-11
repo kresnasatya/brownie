@@ -40,10 +40,11 @@ class Tab:
                 return self.render()
             elif elt.tag == "button":
                 while elt:
+                    # NOTE: You must put tag <form> with "action" attribute
+                    # Otherwise the elt.parent will be None when traverse back
                     if elt.tag == "form" and "action" in elt.attributes:
                         return self.submit_form(elt)
                     elt = elt.parent
-            print("elt is", elt)
             elt = elt.parent
         self.render()
 
@@ -66,7 +67,6 @@ class Tab:
         self.load(url, body)
 
     def load(self, url, payload=None):
-        print("The url", url)
         self.history.append(url)
         body = url.request(payload)
         self.scroll = 0
