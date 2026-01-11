@@ -15,6 +15,9 @@ class Tab:
         self.focus = None
 
     def click(self, x, y):
+        if self.focus:
+            self.focus.is_focused = False
+        self.focus = None
         y += self.scroll
         objs = [
             obj
@@ -22,10 +25,8 @@ class Tab:
             if obj.x <= x < obj.x + obj.width and obj.y <= y < obj.y + obj.height
         ]
         if not objs:
-            return
+            return self.render()
         elt = objs[-1].node
-        if self.focus:
-            self.focus.is_focused = False
         while elt:
             if isinstance(elt, Text):
                 pass
@@ -37,13 +38,37 @@ class Tab:
                 self.focus = elt
                 elt.is_focused = True
                 return self.render()
+            elif elt.tag == "button":
+                while elt:
+                    if elt.tag == "form" and "action" in elt.attributes:
+                        return self.submit_form(elt)
+                    elt = elt.parent
+            print("elt is", elt)
             elt = elt.parent
         self.render()
+
+    def submit_form(self, elt):
+        inputs = [node for node in tree_to_list(elt, [])
+            if isinstance(node, Element)
+            and node.tag == "input"
+            and "name" in node.attributes]
+
+        body = ""
+        for input in inputs:
+            name = input.attributes["name"]
+            value = input.attributes.get("value", "")
+            name = urllib.parse.quote(name)
+            value = urllib.parse.quote(value)
+            body += "&" + name + "=" + value
+        body = body[1:]
+
+        url = self.url.resolve(elt.attributes["action"])
+        self.load(url, body)
 
     def load(self, url, payload=None):
         print("The url", url)
         self.history.append(url)
-        body = url.request()
+        body = url.request(payload)
         self.scroll = 0
         self.url = url
         self.nodes = HTMLParser(body).parse()

@@ -19,7 +19,7 @@ class URL:
             self.host, port = self.host.split(":", 1)
             self.port = int(port)
 
-    def request(self):
+    def request(self, payload=None):
         s = socket.socket(
             family=socket.AF_INET, type=socket.SOCK_STREAM, proto=socket.IPPROTO_TCP
         )
@@ -27,9 +27,14 @@ class URL:
         if self.scheme == "https":
             ctx = ssl.create_default_context()
             s = ctx.wrap_socket(s, server_hostname=self.host)
-        request = "GET {} HTTP/1.0\r\n".format(self.path)
+        method = "POST" if payload else "GET"
+        request = "{} {} HTTP/1.0\r\n".format(method, self.path)
+        if payload:
+            length = len(payload.encode("utf8"))
+            request += "Content-Length: {}\r\n".format(length)
         request += "Host: {}\r\n".format(self.host)
         request += "\r\n"
+        if payload: request += payload
         s.send(request.encode("utf8"))
         response = s.makefile("r", encoding="utf8", newline="\r\n")
         statusline = response.readline()
