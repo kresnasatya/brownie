@@ -23,5 +23,9 @@ if __name__ == "__main__":
 """
 To run this program use Python 3:
     python3 -m http.server 8000 -d ./static-site
-    python3 main.py http://localhost:8000
+    python3 main.py http://localhost:8000 # static site
+
+    FOR server side
+    python3 server/server8.py # This will run localhost:8080
+    python3 main.py http://localhost:8080 # server site
 """
