@@ -6,6 +6,7 @@ from css_parser import CSSParser
 from element import Element
 from text import Text
 from document_layout import DocumentLayout
+from js_context import JSContext
 
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 
@@ -97,13 +98,15 @@ class Tab:
             if isinstance(node, Element)
             and node.tag == "script"
             and "src" in node.attributes]
+        self.js = JSContext()
         for script in scripts:
             script_url = url.resolve(script)
             try:
                 body = script_url.request()
             except:
                 continue
-            print("Script returned: ", dukpy.evaljs(body))
+            # print("Script returned: ", dukpy.evaljs(body))
+            self.js.run(body)
 
         self.render()
 

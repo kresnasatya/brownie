@@ -23,7 +23,7 @@ if __name__ == "__main__":
 """
 To run this program use Python 3:
     uv run -m http.server 8000 -d ./static-site
-    uv main.py http://localhost:8000 # static site
+    uv run main.py http://localhost:8000 # static site
 
     FOR server side
     uv run server/server8.py # This will run localhost:8080
