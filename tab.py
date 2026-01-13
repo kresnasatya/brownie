@@ -106,7 +106,7 @@ class Tab:
             except:
                 continue
             # print("Script returned: ", dukpy.evaljs(body))
-            self.js.run(body)
+            self.js.run(script, body)
 
         self.render()
 
