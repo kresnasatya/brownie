@@ -1,1 +1,5 @@
-call_python("log", "Hi from JS");
+console = {
+  log: function (x) {
+    call_python("log", x);
+  },
+};
