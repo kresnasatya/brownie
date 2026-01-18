@@ -76,6 +76,8 @@ class Tab:
         self.url = url
         self.nodes = HTMLParser(body).parse()
 
+        self.js = JSContext(self)
+
         self.rules = DEFAULT_STYLE_SHEET.copy()
         links = [
             node.attributes["href"]
@@ -98,7 +100,6 @@ class Tab:
             if isinstance(node, Element)
             and node.tag == "script"
             and "src" in node.attributes]
-        self.js = JSContext()
         for script in scripts:
             script_url = url.resolve(script)
             try:
