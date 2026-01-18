@@ -4,6 +4,8 @@ from dom_utils import tree_to_list
 
 RUNTIME_JS = open("runtime.js").read()
 
+EVENT_DISPATCH_JS = "new Node(dukpy.handle).dispatchEvent(dukpy.type)"
+
 class JSContext:
     def __init__(self, tab):
         self.tab = tab
@@ -42,3 +44,7 @@ class JSContext:
         elt = self.handle_to_node[handle]
         attr = elt.attributes.get(attr, None)
         return attr if attr else ""
+
+    def dispatch_event(self, type, elt):
+        handle = self.node_to_handle.get(elt, -1)
+        self.interp.evaljs(EVENT_DISPATCH_JS, type=type, handle=handle)
