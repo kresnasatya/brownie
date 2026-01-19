@@ -24,3 +24,17 @@ You can read the "diff" code by browse the commit in this repo.
 ```sh
 uv run main.py https://browser.engineering
 ```
+
+In chapter 8, you need run two commands: First command for the server. Second command for the browser engine.
+
+```sh
+uv run server/server8.py # This will run localhost:8080
+uv run main.py http://localhost:8080 # server site
+```
+
+In chapter 9, you need run two commands: First command for the server. Second command for the browser engine.
+
+```sh
+uv run server/server9.py # This will run localhost:8080
+uv run main.py http://localhost:8080 # server site
+```
