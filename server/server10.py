@@ -64,7 +64,7 @@ def form_decode(body):
 
 ENTRIES = ['Pavel was here']
 
-def show_comments():
+def show_comments(session):
     out = "<!doctype html>"
     out += "<form action=add method=post>"
     out +=   "<p><input name=guest /></p>"
