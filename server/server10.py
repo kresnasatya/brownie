@@ -59,6 +59,7 @@ def do_request(session, method, url, headers, body):
         return "200 OK", login_form(session)
     elif method == "POST" and url == "/":
         params = form_decode(body)
+        print("params in do_login", params)
         return do_login(session, params)
     elif method == "POST" and url == "/add":
         print("execute in add guest")
@@ -113,6 +114,8 @@ def login_form(session):
 def do_login(session, params):
     username = params.get("username")
     password = params.get("password")
+    print("username", username)
+    print("password", password)
     if username in LOGINS and LOGINS[username] == password:
         session["user"] = username
         return "200 OK", show_comments(session)

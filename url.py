@@ -1,6 +1,8 @@
 import socket
 import ssl
 
+COOKIE_JAR = {}
+
 class URL:
     def __init__(self, url):
         self.scheme, url = url.split("://", 1)
@@ -29,10 +31,13 @@ class URL:
             s = ctx.wrap_socket(s, server_hostname=self.host)
         method = "POST" if payload else "GET"
         request = "{} {} HTTP/1.0\r\n".format(method, self.path)
+        request += "Host: {}\r\n".format(self.host)
+        if self.host in COOKIE_JAR:
+            cookie = COOKIE_JAR[self.host]
+            request += "Cookie: {}\r\n".format(cookie)
         if payload:
             length = len(payload.encode("utf8"))
             request += "Content-Length: {}\r\n".format(length)
-        request += "Host: {}\r\n".format(self.host)
         request += "\r\n"
         if payload: request += payload
         s.send(request.encode("utf8"))
@@ -50,6 +55,9 @@ class URL:
                 break
             header, value = line.split(":", 1)
             response_headers[header.casefold()] = value.strip()
+        if 'set-cookie' in response_headers:
+            cookie = response_headers['set-cookie']
+            COOKIE_JAR[self.host] = cookie
         assert "transfer-encoding" not in response_headers
         assert "content-encoding" not in response_headers
         content = response.read()
