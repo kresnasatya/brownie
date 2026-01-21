@@ -86,3 +86,6 @@ class URL:
             return URL(self.scheme + ":" + url)
         else:
             return URL(self.scheme + "://" + self.host + ":" + str(self.port) + url)
+
+    def origin(self):
+        return self.scheme + "://" + self.host + ":" + str(self.port)
