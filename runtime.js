@@ -1,7 +1,7 @@
 console = {
   log: function (x) {
     call_python("log", x);
-  },
+  }
 };
 
 document = {
@@ -10,7 +10,7 @@ document = {
     return handles.map(function (h) {
       return new Node(h);
     });
-  },
+  }
 };
 
 function Node(handle) {
@@ -44,7 +44,7 @@ Node.prototype.dispatchEvent = function (evt) {
 Object.defineProperty(Node.prototype, "innerHTML", {
   set: function (s) {
     call_python("innerHTML_set", this.handle, s.toString());
-  },
+  }
 });
 
 function Event(type) {
@@ -69,6 +69,6 @@ XMLHttpRequest.prototype.send = function (body) {
     "XMLHttpRequest_send",
     this.method,
     this.url,
-    body,
+    body
   );
 };
