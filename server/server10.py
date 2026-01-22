@@ -87,8 +87,12 @@ ENTRIES = [
 def show_comments(session):
     out = "<!doctype html>"
     if "user" in session:
+        nonce = str(random.random())[2:]
+        session["nonce"] = nonce
         out += "<h1>Hello, " + session['user'] + "</h1>"
         out += "<form action=add method=post>"
+        # Note: When render in our browser (brownie), the input hidden is visible. In the future, we must hide this!
+        out +=   "<input name=nonce type=hidden value=" + nonce + ">"
         out +=   "<p><input name=guest></p>"
         out +=   "<p><button>Sign the book!</button></p>"
         out += "</form>"
@@ -132,6 +136,8 @@ def not_found(url, method):
 def add_entry(session, params):
     print("params", params)
     print("session", session)
+    if 'nonce' not in session or 'nonce' not in params: return
+    if session['nonce'] != params['nonce']: return
     if 'user' not in session: return
     if 'guest' in params and len(params['guest']) <= 100:
         ENTRIES.append((params['guest'], session['user']))
