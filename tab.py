@@ -74,8 +74,8 @@ class Tab:
         self.load(url, body)
 
     def load(self, url, payload=None):
+        headers, body = url.request(self.url, payload)
         self.history.append(url)
-        body = url.request(payload)
         self.scroll = 0
         self.url = url
         self.nodes = HTMLParser(body).parse()
@@ -94,7 +94,7 @@ class Tab:
         for link in links:
             style_url = url.resolve(link)
             try:
-                body = style_url.request()
+                header, body = style_url.request(url)
             except:
                 continue
             self.rules.extend(CSSParser(body).parse())
@@ -107,7 +107,7 @@ class Tab:
         for script in scripts:
             script_url = url.resolve(script)
             try:
-                body = script_url.request()
+                header, body = script_url.request(url)
             except:
                 continue
             # print("Script returned: ", dukpy.evaljs(body))

@@ -21,7 +21,7 @@ class URL:
             self.host, port = self.host.split(":", 1)
             self.port = int(port)
 
-    def request(self, payload=None):
+    def request(self, referrer, payload=None):
         s = socket.socket(
             family=socket.AF_INET, type=socket.SOCK_STREAM, proto=socket.IPPROTO_TCP
         )
@@ -33,8 +33,13 @@ class URL:
         request = "{} {} HTTP/1.0\r\n".format(method, self.path)
         request += "Host: {}\r\n".format(self.host)
         if self.host in COOKIE_JAR:
-            cookie = COOKIE_JAR[self.host]
-            request += "Cookie: {}\r\n".format(cookie)
+            cookie, params = COOKIE_JAR[self.host]
+            allow_cookie = True
+            if referrer and params.get("samesite", "none") == "lax":
+                if method != "GET":
+                    allow_cookie = self.host == referrer.host
+            if allow_cookie:
+                request += "Cookie: {}\r\n".format(cookie)
         if payload:
             length = len(payload.encode("utf8"))
             request += "Content-Length: {}\r\n".format(length)
@@ -57,12 +62,21 @@ class URL:
             response_headers[header.casefold()] = value.strip()
         if 'set-cookie' in response_headers:
             cookie = response_headers['set-cookie']
-            COOKIE_JAR[self.host] = cookie
+            params = {}
+            if ";" in cookie:
+                cookie, rest = cookie.split(";", 1)
+                for param in rest.split(";"):
+                    if '=' in param:
+                        param, value = param.split("=", 1)
+                    else:
+                        value = "true"
+                    params[param.strip().casefold()] = value.casefold()
+            COOKIE_JAR[self.host] = (cookie, params)
         assert "transfer-encoding" not in response_headers
         assert "content-encoding" not in response_headers
         content = response.read()
         s.close()
-        return content
+        return response_headers, content
 
     def __str__(self) -> str:
         port_part = ":" + str(self.port)

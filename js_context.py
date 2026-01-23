@@ -66,6 +66,7 @@ class JSContext:
 
     def XMLHttpRequest_send(self, method, url, body):
         full_url = self.tab.url.resolve(url)
+        headers, out = full_url.request(self.tab.url, body)
         if full_url.origin() != self.tab.url.origin():
             raise Exception("Cross-origin XHR request not allowed")
         headers, out = full_url.request(body)
