@@ -7,6 +7,7 @@ from element import Element
 from text import Text
 from document_layout import DocumentLayout
 from js_context import JSContext
+from url import URL
 
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 
@@ -82,6 +83,14 @@ class Tab:
 
         self.js = JSContext(self)
 
+        self.allowed_origins = None
+        if "content-security-policy" in headers:
+            csp = headers["content-security-policy"].split()
+            if len(csp) > 0 and csp[0] == "default-src":
+                self.allowed_origins = []
+                for origin in csp[1:]:
+                    self.allowed_origins.append(URL(origin).origin())
+
         self.rules = DEFAULT_STYLE_SHEET.copy()
         links = [
             node.attributes["href"]
@@ -93,6 +102,9 @@ class Tab:
         ]
         for link in links:
             style_url = url.resolve(link)
+            if not self.allowed_request(style_url):
+                print("Blocked style", link, "due to CSP")
+                continue
             try:
                 header, body = style_url.request(url)
             except:
@@ -106,6 +118,9 @@ class Tab:
             and "src" in node.attributes]
         for script in scripts:
             script_url = url.resolve(script)
+            if not self.allowed_request(script_url):
+                print("Blocked script", script, "due to CSP")
+                continue
             try:
                 header, body = script_url.request(url)
             except:
@@ -114,6 +129,9 @@ class Tab:
             self.js.run(script, body)
 
         self.render()
+
+    def allowed_request(self, url):
+        return self.allowed_origins == None or url.origin() in self.allowed_origins
 
     def render(self):
         style(self.nodes, sorted(self.rules, key=cascade_priority))
