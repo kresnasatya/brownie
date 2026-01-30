@@ -116,7 +116,7 @@ def paint_visual_effects(node, cmds, rect):
         border_radius = float(node.style.get(
             "border-radius", "0px"
         )[:-2])
-        cmds.append(Blend("destination-in", [
+        cmds.append(Blend(1.0, "destination-in", [
             DrawRRect(rect, border_radius, "white")
         ]))
 
