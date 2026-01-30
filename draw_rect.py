@@ -1,14 +1,15 @@
+import ctypes
+import sdl2
+import skia
+from visual_utils import parse_color
+
 class DrawRect:
     def __init__(self, rect, color) -> None:
         self.rect = rect
         self.color = color
 
-    def execute(self, scroll, canvas):
-        canvas.create_rectangle(
-            self.rect.left,
-            self.rect.top - scroll,
-            self.rect.right,
-            self.rect.bottom - scroll,
-            width=0,
-            fill=self.color,
+    def execute(self, canvas):
+        paint = skia.Paint(
+            Color=parse_color(self.color)
         )
+        canvas.drawRect(self.rect, paint)

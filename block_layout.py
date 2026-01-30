@@ -1,7 +1,9 @@
-from dom_utils import get_font
-from draw_rect import DrawRect
+import ctypes
+import sdl2
+import skia
+from dom_utils import get_font, paint_visual_effects
+from draw_rrect import DrawRRect
 from text_layout import TextLayout
-from rect import Rect
 from line_layout import LineLayout
 from text import Text
 from element import Element
@@ -87,19 +89,19 @@ class BlockLayout:
         self.height = sum([child.height for child in self.children])
 
     def self_rect(self):
-        return Rect(
-            left=self.x,
-            top=self.y,
-            right=self.x + self.width,
-            bottom=self.y + self.height,
+        return skia.Rect.MakeLTRB(
+            l=self.x,
+            t=self.y,
+            r=self.x + self.width,
+            b=self.y + self.height,
         )
 
     def paint(self):
         cmds = []
         bgcolor = self.node.style.get("background-color", "transparent")
         if bgcolor != "transparent":
-            rect = DrawRect(self.self_rect(), bgcolor)
-            cmds.append(rect)
+            radius = float(self.node.style.get("border-radius", "0px")[:-2])
+            cmds.append(DrawRRect(self.self_rect(), radius, bgcolor))
         return cmds
 
     def word(self, node, word):
@@ -109,7 +111,7 @@ class BlockLayout:
             style = "roman"
         size = int(float(node.style["font-size"][:2]) * 0.75)
         font = get_font(size, weight, style)
-        w = font.measure(word)
+        w = font.measureText(word)
         if self.cursor_x + w > self.width:
             self.new_line()
         line = self.children[-1]
@@ -189,7 +191,7 @@ class BlockLayout:
         size = int(float(node.style["font-size"][:-2]) * 0.75)
         font = get_font(size, weight, style)
 
-        self.cursor_x += w + font.measure(" ")
+        self.cursor_x += w + font.measureText(" ")
 
     def layout_intermediate(self):
         previous = None
@@ -217,3 +219,9 @@ class BlockLayout:
         return isinstance(self.node, Text) or (
             self.node.tag != "input" and self.node.tag != "button"
         )
+
+    def paint_effects(self, cmds):
+        cmds = paint_visual_effects(
+            self.node, cmds, self.self_rect()
+        )
+        return cmds

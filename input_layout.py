@@ -1,9 +1,11 @@
-from dom_utils import get_font
-from draw_rect import DrawRect
+import ctypes
+import sdl2
+import skia
+from dom_utils import get_font, linespace, paint_visual_effects
+from draw_rrect import DrawRRect
 from draw_text import DrawText
 from draw_line import DrawLine
 from text import Text
-from rect import Rect
 
 INPUT_WIDTH_PX = 200
 
@@ -28,11 +30,11 @@ class InputLayout:
         self.font = get_font(size, weight, style)
         self.width = INPUT_WIDTH_PX
         if self.previous:
-            space = self.previous.font.measure(" ")
+            space = self.previous.font.measureText(" ")
             self.x = self.previous.x + space + self.previous.width
         else:
             self.x = self.parent.x
-        self.height = self.font.metrics("linespace")
+        self.height = linespace(self.font)
 
     def should_paint(self):
         return True
@@ -41,8 +43,8 @@ class InputLayout:
         cmds = []
         bgcolor = self.node.style.get("background-color", "transparent")
         if bgcolor != "transparent":
-            rect = DrawRect(self.self_rect(), bgcolor)
-            cmds.append(rect)
+            radius = float(self.node.style.get("border-radius", "0px")[:-2])
+            cmds.append(DrawRRect(self.self_rect(), radius, bgcolor))
         text = ""
         if self.node.tag == "input":
             text = self.node.attributes.get("value", "")
@@ -55,16 +57,19 @@ class InputLayout:
         cmds.append(DrawText(self.x, self.y, text, self.font, color))
 
         if self.node.is_focused:
-            cx = self.x + self.font.measure(text)
+            cx = self.x + self.font.measureText(text)
             cmds.append(DrawLine(
                 cx, self.y, cx, self.y + self.height, "black", 1
             ))
         return cmds
 
     def self_rect(self):
-        return Rect(
-            left=self.x,
-            top=self.y,
-            right=self.x + self.width,
-            bottom=self.y + self.height,
+        return skia.Rect.MakeLTRB(
+            l=self.x,
+            t=self.y,
+            r=self.x + self.width,
+            b=self.y + self.height,
         )
+
+    def paint_effects(self, cmds):
+        return paint_visual_effects(self.node, cmds, self.self_rect())

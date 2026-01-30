@@ -28,3 +28,6 @@ class DocumentLayout:
 
     def __repr__(self):
         return "DocumentLayout()"
+
+    def paint_effects(self, cmds):
+        return cmds

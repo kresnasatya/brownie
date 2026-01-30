@@ -9,9 +9,13 @@ Then, export homebrew bin to PATH in order to make separated python & python-tk 
     export PATH="/opt/homebrew/bin:$PATH"
 """
 
-import tkinter
-from tkinter import font
+import ctypes
+import sdl2
+import skia
 from element import Element
+from blend import Blend
+from draw_rrect import DrawRRect
+from css_parser import CSSParser
 
 WIDTH, HEIGHT = 800, 600
 HSTEP, VSTEP = 13, 18
@@ -21,12 +25,25 @@ SCROLL_STEP = 100
 FONTS = {}
 
 def get_font(size, weight, style):
-    key = (size, weight, style)
+    key = (weight, style)
     if key not in FONTS:
-        font = tkinter.font.Font(size=size, weight=weight, slant=style)
-        label = tkinter.Label(font=font)
-        FONTS[key] = (font, label)
-    return FONTS[key][0]
+        if weight == "bold":
+            skia_weight = skia.FontStyle.kBold_Weight
+        else:
+            skia_weight = skia.FontStyle.kNormal_Weight
+        if style == "italic":
+            skia_style = skia.FontStyle.kItalic_Slant
+        else:
+            skia_style = skia.FontStyle.kUpright_Slant
+        skia_width = skia.FontStyle.kNormal_Width
+        style_info = skia.FontStyle(skia_weight, skia_width, skia_style)
+        font = skia.Typeface('Arial', style_info)
+        FONTS[key] = font
+    return skia.Font(FONTS[key], size)
+
+def linespace(font):
+    metrics = font.getMetrics()
+    return metrics.fDescent - metrics.fAscent
 
 def print_tree(node, indent=0):
     print(" " * indent, node)
@@ -81,7 +98,28 @@ def cascade_priority(rule):
 
 def paint_tree(layout_object, display_list):
     if layout_object.should_paint():
-        display_list.extend(layout_object.paint())
-
+        cmds = layout_object.paint()
     for child in layout_object.children:
-        paint_tree(child, display_list)
+        paint_tree(child, cmds)
+
+    if layout_object.should_paint():
+        cmds = layout_object.paint_effects(cmds)
+    display_list.extend(cmds)
+
+def paint_visual_effects(node, cmds, rect):
+    opacity = float(node.style.get("opacity", "1.0"))
+    blend_mode = node.style.get("mix-blend-mode")
+
+    if node.style.get("overflow", "visible") == "clip":
+        if not blend_mode:
+            blend_mode = "source-over"
+        border_radius = float(node.style.get(
+            "border-radius", "0px"
+        )[:-2])
+        cmds.append(Blend("destination-in", [
+            DrawRRect(rect, border_radius, "white")
+        ]))
+
+    return [
+        Blend(opacity, blend_mode, cmds)
+    ]

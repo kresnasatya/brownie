@@ -153,6 +153,10 @@ class Tab:
                 continue
             cmd.execute(self.scroll - offset, canvas)
 
+    def raster(self, canvas):
+        for cmd in self.display_list:
+            cmd.execute(canvas)
+
     def scrolldown(self):
         max_y = max(self.document.height + 2 * VSTEP - self.tab_height, 0)
         self.scroll = min(self.scroll + SCROLL_STEP, max_y)

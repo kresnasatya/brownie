@@ -17,11 +17,11 @@ class LineLayout:
         for word in self.children:
             word.layout()
 
-        max_ascent = max([word.font.metrics("ascent") for word in self.children])
+        max_ascent = max([-word.font.getMetrics().fAscent for word in self.children])
         baseline = self.y + 1.25 * max_ascent
         for word in self.children:
-            word.y = baseline - word.font.metrics("ascent")
-        max_descent = max([word.font.metrics("descent") for word in self.children])
+            word.y = baseline + word.font.getMetrics().fAscent
+        max_descent = max([word.font.getMetrics().fDescent for word in self.children])
         self.height = 1.25 * (max_ascent + max_descent)
 
     def paint(self):
@@ -29,3 +29,6 @@ class LineLayout:
 
     def should_paint(self):
         return True
+
+    def paint_effects(self, cmds):
+            return cmds

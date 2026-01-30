@@ -9,16 +9,37 @@ Then, export homebrew bin to PATH in order to make separated python & python-tk 
     export PATH="/opt/homebrew/bin:$PATH"
 """
 
-import tkinter
+import sys
+import ctypes
+import sdl2
+import skia
 
 from url import URL
 from browser import Browser
 
-if __name__ == "__main__":
-    import sys
+def mainloop(browser):
+    event = sdl2.SDL_Event()
+    while True:
+        while sdl2.SDL_PollEvent(ctypes.byref(event)) != 0:
+            if event.type == sdl2.SDL_QUIT:
+                browser.handle_quit()
+                sdl2.SDL_Quit()
+                sys.exit()
+            elif event.type == sdl2.SDL_MOUSEBUTTONUP:
+                browser.handle_click(event.button)
+            elif event.type == sdl2.SDL_KEYDOWN:
+                if event.key.keysym.sym == sdl2.SDLK_RETURN:
+                    browser.handle_enter()
+                elif event.key.keysym.sym == sdl2.SDLK_DOWN:
+                    browser.handle_down()
+            elif event.type == sdl2.SDL_TEXTINPUT:
+                browser.handle_key(event.text.text.decode('utf8'))
 
-    Browser().new_tab(URL(sys.argv[1]))
-    tkinter.mainloop()
+if __name__ == "__main__":
+    sdl2.SDL_Init(sdl2.SDL_INIT_EVENTS)
+    browser = Browser()
+    browser.new_tab(URL(sys.argv[1]))
+    mainloop(browser)
 
 """
 To run this program use Python 3:

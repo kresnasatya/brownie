@@ -3,16 +3,14 @@ import sdl2
 import skia
 from visual_utils import parse_color
 
-class DrawOutline:
-    def __init__(self, rect, color, thickness):
+class DrawRRect:
+    def __init__(self, rect, radius, color):
         self.rect = rect
+        self.rrect = skia.RRect.MakeRectXY(rect, radius, radius)
         self.color = color
-        self.thickness = thickness
 
     def execute(self, canvas):
         paint = skia.Paint(
             Color=parse_color(self.color),
-            StrokeWidth=self.thickness,
-            Style=skia.Paint.kStroke_Style,
         )
-        canvas.drawRect(self.rect, paint)
+        canvas.drawRRect(self.rrect, paint)
