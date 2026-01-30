@@ -8,6 +8,8 @@ from text import Text
 from document_layout import DocumentLayout
 from js_context import JSContext
 from url import URL
+from task_runner import TaskRunner
+from task import Task
 
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 
@@ -17,6 +19,7 @@ class Tab:
         self.tab_height = tab_height
         self.history = []
         self.focus = None
+        self.task_runner = TaskRunner(self)
 
     def click(self, x, y):
         if self.focus:
@@ -125,8 +128,10 @@ class Tab:
                 header, body = script_url.request(url)
             except:
                 continue
+            task = Task(self.js.run, script_url, body)
+            self.task_runner.schedule_task(task)
             # print("Script returned: ", dukpy.evaljs(body))
-            self.js.run(script, body)
+            # self.js.run(script, body)
 
         self.render()
 
