@@ -2,10 +2,14 @@ import ctypes
 import sdl2
 import skia
 import math
+import threading
 
 from dom_utils import WIDTH, HEIGHT, VSTEP
 from chrome import Chrome
 from tab import Tab
+from task import Task
+
+REFRESH_RATE_SEC = .033
 
 class Browser:
     def __init__(self):
@@ -42,6 +46,8 @@ class Browser:
             self.GREEN_MASK = 0x0000ff00
             self.BLUE_MASK = 0x00ff0000
             self.ALPHA_MASK = 0xff000000
+
+        self.animation_timer = None
 
 
     def handle_down(self):
@@ -82,6 +88,11 @@ class Browser:
             self.raster_tab()
             self.raster_chrome()
             self.draw()
+
+    def raster_and_draw(self):
+        self.raster_chrome()
+        self.raster_tab()
+        self.draw()
 
     def raster_tab(self):
         tab_height = math.ceil(self.active_tab.document.height + 2*VSTEP)
@@ -148,3 +159,13 @@ class Browser:
 
     def handle_quit(self):
         sdl2.SDL_DestroyWindow(self.sdl_window)
+
+    def schedule_animation_frame(self):
+        def callback():
+            active_tab = self.active_tab
+            task = Task(active_tab.render)
+            active_tab.task_runner.schedule_task(task)
+            self.animation_timer = None
+        if not self.animation_timer:
+            self.animation_timer = threading.Timer(REFRESH_RATE_SEC, callback)
+            self.animation_timer.start()

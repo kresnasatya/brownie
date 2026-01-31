@@ -35,6 +35,8 @@ def mainloop(browser):
             elif event.type == sdl2.SDL_TEXTINPUT:
                 browser.handle_key(event.text.text.decode('utf8'))
         browser.active_tab.task_runner.run()
+        browser.raster_and_draw()
+        browser.schedule_animation_frame()
 
 if __name__ == "__main__":
     sdl2.SDL_Init(sdl2.SDL_INIT_EVENTS)
