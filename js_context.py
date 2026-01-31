@@ -10,6 +10,8 @@ EVENT_DISPATCH_JS = "new Node(dukpy.handle).dispatchEvent(new Event(dukpy.type))
 
 SETTIMEOUT_JS = "__runSetTimeout(dukpy.handle)"
 
+XHR_ONLOAD_JS = "__runXHROnload(dukpy.out, dukpy.handle)"
+
 class JSContext:
     def __init__(self, tab):
         self.tab = tab
@@ -70,15 +72,23 @@ class JSContext:
             child.parent = elt
         self.tab.render()
 
-    def XMLHttpRequest_send(self, method, url, body):
+    def XMLHttpRequest_send(self, method, url, body, isasync, handle):
         full_url = self.tab.url.resolve(url)
-        headers, out = full_url.request(self.tab.url, body)
         if not self.tab.allowed_request(full_url):
             raise Exception("Cross-origin XHR blocked by CSP")
         if full_url.origin() != self.tab.url.origin():
             raise Exception("Cross-origin XHR request not allowed")
-        headers, out = full_url.request(body)
-        return out
+
+        def run_load():
+            headers, response = full_url.request(self.tab.url, body)
+            task = Task(self.dispatch_xhr_onload, response.handle)
+            self.tab.task_runner.schedule_task(task)
+            return response
+
+        if not isasync:
+            return run_load()
+        else:
+            threading.Thread(target=run_load).start()
 
     def dispatch_settimeout(self, handle):
         if self.discarded: return
@@ -89,3 +99,7 @@ class JSContext:
             task = Task(self.dispatch_settimeout, handle)
             self.tab.task_runner.schedule_task(task)
         threading.Timer(time / 1000.0, run_callback).start()
+
+    def dispatch_xhr_onload(self, out, handle):
+        if self.discarded: return
+        do_default = self.interp.evaljs(XHR_ONLOAD_JS, out=out, handle=handle)
