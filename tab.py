@@ -20,6 +20,7 @@ class Tab:
         self.history = []
         self.focus = None
         self.task_runner = TaskRunner(self)
+        self.js = None
 
     def click(self, x, y):
         if self.focus:
@@ -84,6 +85,7 @@ class Tab:
         self.url = url
         self.nodes = HTMLParser(body).parse()
 
+        if self.js: self.js.discarded = True
         self.js = JSContext(self)
 
         self.allowed_origins = None
