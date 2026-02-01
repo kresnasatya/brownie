@@ -146,10 +146,7 @@ class Tab:
         self.browser.set_needs_animation_frame(self)
 
     def render(self):
-        self.browser.measure.time('script-runRAFHandlers')
         self.js.interp.evaljs("__runRAFHandlers()")
-        self.browser.measure.stop('script-runRAFHandlers')
-        self.browser.measure.time('render')
         if not self.needs_render: return
         style(self.nodes, sorted(self.rules, key=cascade_priority))
         self.document = DocumentLayout(self.nodes)
@@ -158,7 +155,6 @@ class Tab:
         paint_tree(self.document, self.display_list)
         self.needs_render = False
         self.browser.set_needs_raster_and_draw()
-        self.browser.measure.stop('render')
 
     def draw(self, canvas, offset):
         for cmd in self.display_list:

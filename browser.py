@@ -8,7 +8,6 @@ from dom_utils import WIDTH, HEIGHT, VSTEP
 from chrome import Chrome
 from tab import Tab
 from task import Task
-from measure_time import MeasureTime
 
 REFRESH_RATE_SEC = .033
 
@@ -51,7 +50,6 @@ class Browser:
         self.animation_timer = None
         self.needs_raster_and_draw = False
         self.needs_animation_frame = True
-        self.measure = MeasureTime()
 
     def set_needs_raster_and_draw(self):
         self.needs_raster_and_draw = True
@@ -94,14 +92,12 @@ class Browser:
             self.raster_and_draw()
 
     def raster_and_draw(self):
-        self.measure.time('raster/draw')
         if not self.needs_raster_and_draw: return
         self.active_tab.render()
         self.raster_chrome()
         self.raster_tab()
         self.draw()
         self.needs_raster_and_draw = False
-        self.measure.stop('raster/draw')
 
     def raster_tab(self):
         tab_height = math.ceil(self.active_tab.document.height + 2*VSTEP)
@@ -167,7 +163,6 @@ class Browser:
 
     def handle_quit(self):
         sdl2.SDL_DestroyWindow(self.sdl_window)
-        self.measure.finish()
 
     def schedule_animation_frame(self):
         def callback():
