@@ -14,15 +14,18 @@ from task import Task
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 
 class Tab:
-    def __init__(self, tab_height):
+    def __init__(self, browser, tab_height):
         self.url = None
         self.tab_height = tab_height
         self.history = []
         self.focus = None
         self.task_runner = TaskRunner(self)
         self.js = None
+        self.needs_render = False
+        self.browser = browser
 
     def click(self, x, y):
+        self.render()
         if self.focus:
             self.focus.is_focused = False
         self.focus = None
@@ -33,7 +36,7 @@ class Tab:
             if obj.x <= x < obj.x + obj.width and obj.y <= y < obj.y + obj.height
         ]
         if not objs:
-            return self.render()
+            return self.set_needs_render()
         elt = objs[-1].node
         while elt:
             if isinstance(elt, Text):
@@ -47,7 +50,7 @@ class Tab:
                 elt.attributes["value"] = ""
                 self.focus = elt
                 elt.is_focused = True
-                return self.render()
+                return self.set_needs_render()
             elif elt.tag == "button":
                 if self.js.dispatch_event("click", elt): return
                 while elt:
@@ -57,7 +60,7 @@ class Tab:
                         return self.submit_form(elt)
                     elt = elt.parent
             elt = elt.parent
-        self.render()
+        self.set_needs_render()
 
     def submit_form(self, elt):
         if self.js.dispatch_event("submit", elt): return
@@ -133,17 +136,23 @@ class Tab:
             task = Task(self.js.run, script_url, body)
             self.task_runner.schedule_task(task)
 
-        self.render()
+        self.set_needs_render()
 
     def allowed_request(self, url):
         return self.allowed_origins == None or url.origin() in self.allowed_origins
 
+    def set_needs_render(self):
+        self.needs_render = True
+
     def render(self):
+        if not self.needs_render and hasattr(self, 'document'): return
         style(self.nodes, sorted(self.rules, key=cascade_priority))
         self.document = DocumentLayout(self.nodes)
         self.document.layout()
         self.display_list = []
         paint_tree(self.document, self.display_list)
+        self.needs_render = False
+        self.browser.set_needs_raster_and_draw()
 
     def draw(self, canvas, offset):
         for cmd in self.display_list:
@@ -171,4 +180,4 @@ class Tab:
         if self.focus:
             if self.js.dispatch_event("keydown", self.focus): return
             self.focus.attributes["value"] += char
-            self.render()
+            self.set_needs_render()

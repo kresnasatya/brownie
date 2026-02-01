@@ -143,9 +143,6 @@ class Chrome:
             self.browser.new_tab(URL("https://browser.engineering"))
         elif self.back_rect.contains(x, y):
             self.browser.active_tab.go_back()
-            self.browser.raster_chrome()
-            self.browser.raster_tab()
-            self.browser.draw()
         elif self.address_rect.contains(x, y):
             self.focus = "address bar"
             self.address_bar = ""
@@ -154,7 +151,6 @@ class Chrome:
                 if self.tab_rect(i).contains(x, y):
                     self.browser.active_tab = tab
                     break
-            self.browser.raster_tab()
 
     def keypress(self, char):
         if self.focus == "address bar":
@@ -167,6 +163,8 @@ class Chrome:
             self.browser.active_tab.load(URL(self.address_bar))
             self.focus = None
             self.browser.focus = None
+            return True
+        return False
 
     def blur(self):
         self.focus = None

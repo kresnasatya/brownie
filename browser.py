@@ -48,53 +48,55 @@ class Browser:
             self.ALPHA_MASK = 0xff000000
 
         self.animation_timer = None
+        self.needs_raster_and_draw = False
 
+    def set_needs_raster_and_draw(self):
+        self.needs_raster_and_draw = True
 
     def handle_down(self):
         self.active_tab.scrolldown()
-        self.draw()
+        self.set_needs_raster_and_draw()
+        self.raster_and_draw()
 
     def handle_click(self, e):
         if e.y < self.chrome.bottom:
             self.focus = None
             self.chrome.click(e.x, e.y)
-            self.raster_chrome()
+            self.set_needs_raster_and_draw()
         else:
             if self.focus != "content":
                 self.focus = "content"
                 self.chrome.blur()
-                self.raster_chrome()
+                self.set_needs_raster_and_draw()
             url = self.active_tab.url
             tab_y = e.y - self.chrome.bottom
             self.active_tab.click(e.x, tab_y)
             if self.active_tab.url != url:
-                self.raster_chrome()
-            self.raster_tab()
-        self.draw()
+                self.set_needs_raster_and_draw()
+        self.raster_and_draw()
 
     def handle_key(self, char):
         if not (0x20 <= ord(char) < 0x7F):
             return
-        if self.chrome.focus:
-            self.chrome.keypress(char)
-            self.raster_chrome()
-            self.draw()
+        if self.chrome.keypress(char):
+            self.set_needs_raster_and_draw()
+            self.raster_and_draw()
         elif self.focus == "content":
             self.active_tab.keypress(char)
-            self.raster_tab()
-            self.draw()
+            self.raster_and_draw()
 
     def handle_enter(self):
-        if self.chrome.focus:
-            self.chrome.enter()
-            self.raster_tab()
-            self.raster_chrome()
-            self.draw()
+        if self.chrome.enter():
+            self.set_needs_raster_and_draw()
+            self.raster_and_draw()
 
     def raster_and_draw(self):
+        if not self.needs_raster_and_draw: return
+        self.active_tab.render()
         self.raster_chrome()
         self.raster_tab()
         self.draw()
+        self.needs_raster_and_draw = False
 
     def raster_tab(self):
         tab_height = math.ceil(self.active_tab.document.height + 2*VSTEP)
@@ -151,13 +153,12 @@ class Browser:
         sdl2.SDL_UpdateWindowSurface(self.sdl_window)
 
     def new_tab(self, url):
-        new_tab = Tab(HEIGHT - self.chrome.bottom)
+        new_tab = Tab(self, HEIGHT - self.chrome.bottom)
         new_tab.load(url)
         self.tabs.append(new_tab)
         self.active_tab = new_tab
-        self.raster_chrome()
-        self.raster_tab()
-        self.draw()
+        self.set_needs_raster_and_draw()
+        self.raster_and_draw()
 
     def handle_quit(self):
         sdl2.SDL_DestroyWindow(self.sdl_window)
