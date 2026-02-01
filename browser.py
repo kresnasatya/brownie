@@ -60,8 +60,10 @@ class Browser:
             self.chrome.click(e.x, e.y)
             self.raster_chrome()
         else:
-            self.focus = "content"
-            self.chrome.blur()
+            if self.focus != "content":
+                self.focus = "content"
+                self.chrome.blur()
+                self.raster_chrome()
             url = self.active_tab.url
             tab_y = e.y - self.chrome.bottom
             self.active_tab.click(e.x, tab_y)
