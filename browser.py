@@ -3,6 +3,7 @@ import sdl2
 import skia
 import math
 import threading
+import time
 
 from dom_utils import WIDTH, HEIGHT, VSTEP
 from chrome import Chrome
@@ -49,6 +50,7 @@ class Browser:
 
         self.animation_timer = None
         self.needs_raster_and_draw = False
+        self.needs_animation_frame = True
 
     def set_needs_raster_and_draw(self):
         self.needs_raster_and_draw = True
@@ -169,6 +171,11 @@ class Browser:
             task = Task(active_tab.render)
             active_tab.task_runner.schedule_task(task)
             self.animation_timer = None
-        if not self.animation_timer:
+            self.needs_animation_frame = False
+        if self.needs_animation_frame and not self.animation_timer:
             self.animation_timer = threading.Timer(REFRESH_RATE_SEC, callback)
             self.animation_timer.start()
+
+    def set_needs_animation_frame(self, tab):
+        if tab == self.active_tab:
+            self.needs_animation_frame = True

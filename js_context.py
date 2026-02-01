@@ -8,6 +8,8 @@ RUNTIME_JS = open("runtime.js").read()
 
 EVENT_DISPATCH_JS = "new Node(dukpy.handle).dispatchEvent(new Event(dukpy.type))"
 
+RAF_RUN_JS = "__runRAFHandlers()"
+
 SETTIMEOUT_JS = "__runSetTimeout(dukpy.handle)"
 
 XHR_ONLOAD_JS = "__runXHROnload(dukpy.out, dukpy.handle)"
@@ -22,6 +24,7 @@ class JSContext:
         self.interp.export_function("innerHTML_set", self.innerHTML_set)
         self.interp.export_function("XMLHttpRequest_send", self.XMLHttpRequest_send)
         self.interp.export_function("setTimeout", self.setTimeout)
+        self.interp.export_function("requestAnimationFrame", self.requestAnimationFrame)
         self.interp.evaljs(RUNTIME_JS)
 
         self.node_to_handle = {}
@@ -103,3 +106,6 @@ class JSContext:
     def dispatch_xhr_onload(self, out, handle):
         if self.discarded: return
         do_default = self.interp.evaljs(XHR_ONLOAD_JS, out=out, handle=handle)
+
+    def requestAnimationFrame(self):
+        self.tab.browser.set_needs_animation_frame(self.tab)

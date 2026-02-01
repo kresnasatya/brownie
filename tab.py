@@ -143,9 +143,11 @@ class Tab:
 
     def set_needs_render(self):
         self.needs_render = True
+        self.browser.set_needs_animation_frame(self)
 
     def render(self):
-        if not self.needs_render and hasattr(self, 'document'): return
+        self.js.interp.evaljs("__runRAFHandlers()")
+        if not self.needs_render: return
         style(self.nodes, sorted(self.rules, key=cascade_priority))
         self.document = DocumentLayout(self.nodes)
         self.document.layout()
