@@ -83,10 +83,6 @@ class Tab:
         self.history.append(url)
         self.scroll = 0
         self.url = url
-        self.nodes = HTMLParser(body).parse()
-
-        if self.js: self.js.discarded = True
-        self.js = JSContext(self)
 
         self.allowed_origins = None
         if "content-security-policy" in headers:
@@ -95,6 +91,8 @@ class Tab:
                 self.allowed_origins = []
                 for origin in csp[1:]:
                     self.allowed_origins.append(URL(origin).origin())
+
+        self.nodes = HTMLParser(body).parse()
 
         self.rules = DEFAULT_STYLE_SHEET.copy()
         links = [
@@ -116,6 +114,8 @@ class Tab:
                 continue
             self.rules.extend(CSSParser(body).parse())
 
+        if self.js: self.js.discarded = True
+        self.js = JSContext(self)
         scripts = [node.attributes["src"] for node
             in tree_to_list(self.nodes, [])
             if isinstance(node, Element)
@@ -132,8 +132,6 @@ class Tab:
                 continue
             task = Task(self.js.run, script_url, body)
             self.task_runner.schedule_task(task)
-            # print("Script returned: ", dukpy.evaljs(body))
-            # self.js.run(script, body)
 
         self.render()
 
@@ -145,11 +143,6 @@ class Tab:
         self.document = DocumentLayout(self.nodes)
         self.document.layout()
         self.display_list = []
-
-        # Print the layout tree to see the BlockLayout structure
-        # print("Layout Tree:")
-        # print_tree(self.document)
-
         paint_tree(self.document, self.display_list)
 
     def draw(self, canvas, offset):
