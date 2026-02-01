@@ -3,7 +3,6 @@ import sdl2
 import skia
 import math
 import threading
-import time
 
 from dom_utils import WIDTH, HEIGHT, VSTEP
 from chrome import Chrome
