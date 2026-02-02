@@ -166,8 +166,8 @@ class Browser:
         self.raster_and_draw()
 
     def handle_quit(self):
-        sdl2.SDL_DestroyWindow(self.sdl_window)
         self.measure.finish()
+        sdl2.SDL_DestroyWindow(self.sdl_window)
 
     def schedule_animation_frame(self):
         def callback():
