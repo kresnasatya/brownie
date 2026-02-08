@@ -1,4 +1,5 @@
 import dukpy
+import math
 import urllib.parse
 from dom_utils import VSTEP, SCROLL_STEP, tree_to_list, style, cascade_priority, paint_tree
 from html_parser import HTMLParser
@@ -10,19 +11,22 @@ from js_context import JSContext
 from url import URL
 from task_runner import TaskRunner
 from task import Task
+from commit_data import CommitData
 
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 
 class Tab:
     def __init__(self, browser, tab_height):
         self.url = None
+        self.scroll = 0
         self.tab_height = tab_height
         self.history = []
         self.focus = None
-        self.task_runner = TaskRunner(self)
         self.js = None
         self.needs_render = False
         self.browser = browser
+        self.task_runner = TaskRunner(self)
+        self.task_runner.start_thread()
 
     def click(self, x, y):
         self.render()
@@ -187,3 +191,13 @@ class Tab:
             if self.js.dispatch_event("keydown", self.focus): return
             self.focus.attributes["value"] += char
             self.set_needs_render()
+
+    def run_animation_frame(self):
+        self.js.interp.evaljs("__runRAFHandlers()")
+        self.render()
+        document_height = math.ceil(self.document.height + 2*VSTEP)
+        commit_data = CommitData(
+            self.url, self.scroll, document_height, self.display_list
+        )
+        self.display_list = None
+        self.browser.commit(self, commit_data)

@@ -7,6 +7,7 @@ from draw_line import DrawLine
 from draw_outline import DrawOutline
 from draw_text import DrawText
 from url import URL
+from task import Task
 
 class Chrome:
     def __init__(self, browser):
@@ -125,7 +126,7 @@ class Chrome:
                 )
             )
         else:
-            url = str(self.browser.active_tab.url)
+            url = str(self.browser.active_tab_url) if self.browser.active_tab_url else ""
             cmds.append(
                 DrawText(
                     self.address_rect.left() + self.padding,
@@ -140,7 +141,7 @@ class Chrome:
     def click(self, x, y):
         self.focus = None
         if self.newtab_rect.contains(x, y):
-            self.browser.new_tab(URL("https://browser.engineering"))
+            self.browser.new_tab_internal(URL("https://browser.engineering"))
         elif self.back_rect.contains(x, y):
             self.browser.active_tab.go_back()
         elif self.address_rect.contains(x, y):
@@ -149,7 +150,10 @@ class Chrome:
         else:
             for i, tab in enumerate(self.browser.tabs):
                 if self.tab_rect(i).contains(x, y):
-                    self.browser.active_tab = tab
+                    self.browser.set_active_tab(tab)
+                    active_tab = self.browser.active_tab
+                    task = Task(active_tab.set_needs_render)
+                    active_tab.task_runner.schedule_task(task)
                     break
 
     def keypress(self, char):
@@ -160,11 +164,9 @@ class Chrome:
 
     def enter(self):
         if self.focus == "address bar":
-            self.browser.active_tab.load(URL(self.address_bar))
+            self.browser.schedule_load(URL(self.address_bar))
             self.focus = None
             self.browser.focus = None
-            return True
-        return False
 
     def blur(self):
         self.focus = None

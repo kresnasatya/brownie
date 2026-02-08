@@ -52,16 +52,25 @@ class Browser:
         self.needs_raster_and_draw = False
         self.needs_animation_frame = True
         self.measure = MeasureTime()
+        threading.current_thread().name = "Browser thread"
+
+        self.lock = threading.Lock()
+        self.active_tab_url = None
+        self.active_tab_scroll = 0
+        self.active_tab_height = 0
+        self.active_tab_display_list = None
 
     def set_needs_raster_and_draw(self):
         self.needs_raster_and_draw = True
 
     def handle_down(self):
-        self.active_tab.scrolldown()
-        self.set_needs_raster_and_draw()
-        self.raster_and_draw()
+        self.lock.acquire(blocking=True)
+        task = Task(self.active_tab.scrolldown)
+        self.active_tab.task_runner.schedule_task(task)
+        self.lock.release()
 
     def handle_click(self, e):
+        self.lock.acquire(blocking=True)
         if e.y < self.chrome.bottom:
             self.focus = None
             self.chrome.click(e.x, e.y)
@@ -69,47 +78,55 @@ class Browser:
         else:
             if self.focus != "content":
                 self.focus = "content"
-                self.chrome.blur()
+                self.chrome.focus = None
                 self.set_needs_raster_and_draw()
-            url = self.active_tab.url
+            self.chrome.blur()
             tab_y = e.y - self.chrome.bottom
-            self.active_tab.click(e.x, tab_y)
-            if self.active_tab.url != url:
-                self.set_needs_raster_and_draw()
-        self.raster_and_draw()
+            task = Task(self.active_tab.click, e.x, tab_y)
+            self.active_tab.task_runner.schedule_task(task)
+        self.lock.release()
 
     def handle_key(self, char):
+        self.lock.acquire(blocking=True)
         if not (0x20 <= ord(char) < 0x7F):
             return
         if self.chrome.keypress(char):
             self.set_needs_raster_and_draw()
-            self.raster_and_draw()
         elif self.focus == "content":
-            self.active_tab.keypress(char)
-            self.raster_and_draw()
+            task = Task(self.active_tab.keypress, char)
+            self.active_tab.task_runner.schedule_task(task)
+        self.lock.release()
 
     def handle_enter(self):
+        self.lock.acquire(blocking=True)
         if self.chrome.enter():
             self.set_needs_raster_and_draw()
-            self.raster_and_draw()
+        self.lock.release()
 
     def raster_and_draw(self):
-        if not self.needs_raster_and_draw: return
+        self.lock.acquire(blocking=True)
+        if not self.needs_raster_and_draw:
+            self.lock.release()
+            return
         self.measure.time('raster/draw')
-        self.active_tab.render()
         self.raster_chrome()
         self.raster_tab()
         self.draw()
         self.needs_raster_and_draw = False
         self.measure.stop('raster/draw')
+        self.lock.release()
 
     def raster_tab(self):
-        tab_height = math.ceil(self.active_tab.document.height + 2*VSTEP)
-        if not self.tab_surface or tab_height != self.tab_surface.height():
-            self.tab_surface = skia.Surface(WIDTH, tab_height)
+        if self.active_tab_height == None:
+            return
+        if not self.tab_surface or \
+                self.active_tab_height != self.tab_surface.height():
+            self.tab_surface = skia.Surface(WIDTH, self.active_tab_height)
+
         canvas = self.tab_surface.getCanvas()
         canvas.clear(skia.ColorWHITE)
-        self.active_tab.raster(canvas)
+        for cmd in self.active_tab_display_list:
+            cmd.execute(canvas)
 
     def raster_chrome(self):
         canvas = self.chrome_surface.getCanvas()
@@ -158,28 +175,65 @@ class Browser:
         sdl2.SDL_UpdateWindowSurface(self.sdl_window)
 
     def new_tab(self, url):
+        self.lock.acquire(blocking=True)
+        self.new_tab_internal(url)
+        self.lock.release()
+
+    def new_tab_internal(self, url):
+        print("new tab opened")
         new_tab = Tab(self, HEIGHT - self.chrome.bottom)
-        new_tab.load(url)
         self.tabs.append(new_tab)
-        self.active_tab = new_tab
-        self.set_needs_raster_and_draw()
-        self.raster_and_draw()
+        self.set_active_tab(new_tab)
+        self.schedule_load(url)
+
+    def set_active_tab(self, tab):
+        self.active_tab = tab
+        self.active_tab_scroll = 0
+        self.active_tab_url = None
+        # self.active_tab_display_list = None
+        self.needs_animation_frame = True
+        self.animation_timer = None
 
     def handle_quit(self):
         self.measure.finish()
+        for tab in self.tabs:
+            tab.task_runner.set_needs_quit()
         sdl2.SDL_DestroyWindow(self.sdl_window)
 
     def schedule_animation_frame(self):
         def callback():
+            self.lock.acquire(blocking=True)
             active_tab = self.active_tab
-            task = Task(active_tab.render)
-            active_tab.task_runner.schedule_task(task)
             self.animation_timer = None
             self.needs_animation_frame = False
+            self.lock.release()
+            task = Task(active_tab.run_animation_frame)
+            active_tab.task_runner.schedule_task(task)
+        self.lock.acquire(blocking=True)
         if self.needs_animation_frame and not self.animation_timer:
             self.animation_timer = threading.Timer(REFRESH_RATE_SEC, callback)
             self.animation_timer.start()
+        self.lock.release()
 
     def set_needs_animation_frame(self, tab):
+        self.lock.acquire(blocking=True)
         if tab == self.active_tab:
             self.needs_animation_frame = True
+        self.lock.release()
+
+    def schedule_load(self, url, body=None):
+        self.active_tab.task_runner.clear_pending_tasks()
+        task = Task(self.active_tab.load, url, body)
+        self.active_tab.task_runner.schedule_task(task)
+
+    def commit(self, tab, data):
+        self.lock.acquire(blocking=True)
+        if tab == self.active_tab:
+            self.active_tab_url = data.url
+            self.active_tab_scroll = data.scroll
+            self.active_tab_height = data.height
+            if data.display_list:
+                self.active_tab_display_list = data.display_list
+            self.animation_timer = None
+            self.set_needs_raster_and_draw()
+        self.lock.release()
