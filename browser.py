@@ -4,7 +4,7 @@ import skia
 import math
 import threading
 
-from dom_utils import WIDTH, HEIGHT, VSTEP
+from dom_utils import WIDTH, HEIGHT, VSTEP, SCROLL_STEP
 from chrome import Chrome
 from tab import Tab
 from task import Task
@@ -63,10 +63,21 @@ class Browser:
     def set_needs_raster_and_draw(self):
         self.needs_raster_and_draw = True
 
+    def clamp_scroll(self, scroll):
+        height = self.active_tab_height
+        maxscroll = height - (HEIGHT - self.chrome.bottom)
+        return max(0, min(scroll, maxscroll))
+
     def handle_down(self):
         self.lock.acquire(blocking=True)
-        task = Task(self.active_tab.scrolldown)
-        self.active_tab.task_runner.schedule_task(task)
+        if not self.active_tab_height:
+            self.lock.release()
+            return
+        self.active_tab_scroll = self.clamp_scroll(
+            self.active_tab_scroll + SCROLL_STEP
+        )
+        self.set_needs_raster_and_draw()
+        self.needs_animation_frame = True
         self.lock.release()
 
     def handle_click(self, e):
@@ -203,11 +214,11 @@ class Browser:
     def schedule_animation_frame(self):
         def callback():
             self.lock.acquire(blocking=True)
+            scroll = self.active_tab_scroll
             active_tab = self.active_tab
-            self.animation_timer = None
             self.needs_animation_frame = False
             self.lock.release()
-            task = Task(active_tab.run_animation_frame)
+            task = Task(active_tab.run_animation_frame, scroll)
             active_tab.task_runner.schedule_task(task)
         self.lock.acquire(blocking=True)
         if self.needs_animation_frame and not self.animation_timer:
@@ -230,7 +241,8 @@ class Browser:
         self.lock.acquire(blocking=True)
         if tab == self.active_tab:
             self.active_tab_url = data.url
-            self.active_tab_scroll = data.scroll
+            if data.scroll != None:
+                self.active_tab_scroll = data.scroll
             self.active_tab_height = data.height
             if data.display_list:
                 self.active_tab_display_list = data.display_list

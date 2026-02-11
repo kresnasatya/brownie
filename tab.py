@@ -27,6 +27,7 @@ class Tab:
         self.browser = browser
         self.task_runner = TaskRunner(self)
         self.task_runner.start_thread()
+        self.scroll_changed_in_tab = False
 
     def click(self, x, y):
         self.render()
@@ -86,9 +87,12 @@ class Tab:
         self.load(url, body)
 
     def load(self, url, payload=None):
+        self.loaded = False
+        self.scroll = 0
+        self.scroll_changed_in_tab = True
+        self.task_runner.clear_pending_tasks() # NOTE: I don't know why this line doesn't mentioned in book. But, in GitHub repo it shows.
         headers, body = url.request(self.url, payload)
         self.history.append(url)
-        self.scroll = 0
         self.url = url
 
         self.allowed_origins = None
@@ -141,6 +145,12 @@ class Tab:
             self.task_runner.schedule_task(task)
 
         self.set_needs_render()
+        self.loaded = True
+
+    def clamp_scroll(self, scroll):
+        height = math.ceil(self.document.height + 2*VSTEP)
+        maxscroll = height - self.tab_height
+        return max(0, min(scroll, maxscroll))
 
     def allowed_request(self, url):
         return self.allowed_origins == None or url.origin() in self.allowed_origins
@@ -158,7 +168,13 @@ class Tab:
         self.display_list = []
         paint_tree(self.document, self.display_list)
         self.needs_render = False
-        self.browser.set_needs_raster_and_draw()
+
+        clamped_scroll = self.clamp_scroll(self.scroll)
+        if clamped_scroll != self.scroll:
+            self.scroll_changed_in_tab = True
+        self.scroll = clamped_scroll
+
+        # self.browser.set_needs_raster_and_draw() # I comment this line because in GitHub repo it disappears. Huft, it's annoying
         self.browser.measure.stop('render')
 
     def draw(self, canvas, offset):
@@ -189,14 +205,21 @@ class Tab:
             self.focus.attributes["value"] += char
             self.set_needs_render()
 
-    def run_animation_frame(self):
+    def run_animation_frame(self, scroll):
+        if not self.scroll_changed_in_tab:
+            self.scroll = scroll
         self.browser.measure.time('script-runRAFHandlers')
         self.js.interp.evaljs("__runRAFHandlers()")
         self.browser.measure.stop('script-runRAFHandlers')
         self.render()
+
+        scroll = None
+        if self.scroll_changed_in_tab:
+            scroll = self.scroll
         document_height = math.ceil(self.document.height + 2*VSTEP)
         commit_data = CommitData(
-            self.url, self.scroll, document_height, self.display_list
+            self.url, scroll, document_height, self.display_list
         )
         self.display_list = None
         self.browser.commit(self, commit_data)
+        self.scroll_changed_in_tab = False
