@@ -78,6 +78,7 @@ class Browser:
         )
         self.set_needs_raster_and_draw()
         self.needs_animation_frame = True
+        self.raster_and_draw()
         self.lock.release()
 
     def handle_click(self, e):
