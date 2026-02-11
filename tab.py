@@ -150,9 +150,6 @@ class Tab:
         self.browser.set_needs_animation_frame(self)
 
     def render(self):
-        self.browser.measure.time('script-runRAFHandlers')
-        self.js.interp.evaljs("__runRAFHandlers()")
-        self.browser.measure.stop('script-runRAFHandlers')
         if not self.needs_render: return
         self.browser.measure.time('render')
         style(self.nodes, sorted(self.rules, key=cascade_priority))
@@ -193,7 +190,9 @@ class Tab:
             self.set_needs_render()
 
     def run_animation_frame(self):
+        self.browser.measure.time('script-runRAFHandlers')
         self.js.interp.evaljs("__runRAFHandlers()")
+        self.browser.measure.stop('script-runRAFHandlers')
         self.render()
         document_height = math.ceil(self.document.height + 2*VSTEP)
         commit_data = CommitData(
