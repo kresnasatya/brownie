@@ -25,6 +25,7 @@ class JSContext:
         self.interp.export_function("XMLHttpRequest_send", self.XMLHttpRequest_send)
         self.interp.export_function("setTimeout", self.setTimeout)
         self.interp.export_function("requestAnimationFrame", self.requestAnimationFrame)
+        self.interp.export_function("style_set", self.style_set)
         self.interp.evaljs(RUNTIME_JS)
 
         self.node_to_handle = {}
@@ -109,3 +110,8 @@ class JSContext:
 
     def requestAnimationFrame(self):
         self.tab.browser.set_needs_animation_frame(self.tab)
+
+    def style_set(self, handle, s):
+        elt = self.handle_to_node[handle]
+        elt.attributes["style"] = s
+        self.tab.set_needs_render()
