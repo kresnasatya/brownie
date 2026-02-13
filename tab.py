@@ -31,41 +31,38 @@ class Tab:
 
     def click(self, x, y):
         self.render()
-        if self.focus:
-            self.focus.is_focused = False
         self.focus = None
         y += self.scroll
         objs = [
-            obj
-            for obj in tree_to_list(self.document, [])
+            obj for obj in tree_to_list(self.document, [])
             if obj.x <= x < obj.x + obj.width and obj.y <= y < obj.y + obj.height
         ]
         if not objs:
-            return self.set_needs_render()
+            return
         elt = objs[-1].node
+        if elt and self.js.dispatch_event("click", elt): return
         while elt:
             if isinstance(elt, Text):
                 pass
             elif elt.tag == "a" and "href" in elt.attributes:
-                if self.js.dispatch_event("click", elt): return
                 url = self.url.resolve(elt.attributes["href"])
                 return self.load(url)
             elif elt.tag == "input":
-                if self.js.dispatch_event("click", elt): return
                 elt.attributes["value"] = ""
+                if self.focus:
+                   self.focus.is_focused = False
                 self.focus = elt
                 elt.is_focused = True
-                return self.set_needs_render()
+                self.set_needs_render()
+                return
             elif elt.tag == "button":
-                if self.js.dispatch_event("click", elt): return
-                while elt:
+                while elt.parent:
                     # NOTE: You must put tag <form> with "action" attribute
                     # Otherwise the elt.parent will be None when traverse back
                     if elt.tag == "form" and "action" in elt.attributes:
                         return self.submit_form(elt)
                     elt = elt.parent
             elt = elt.parent
-        self.set_needs_render()
 
     def submit_form(self, elt):
         if self.js.dispatch_event("submit", elt): return

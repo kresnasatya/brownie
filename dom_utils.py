@@ -97,6 +97,8 @@ def cascade_priority(rule):
     return selector.priority
 
 def paint_tree(layout_object, display_list):
+    cmds = [] # Initialize before any conditional logic
+
     if layout_object.should_paint():
         cmds = layout_object.paint()
     for child in layout_object.children:
