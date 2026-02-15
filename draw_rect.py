@@ -8,6 +8,14 @@ class DrawRect:
         self.rect = rect
         self.color = color
 
+    def __repr__(self):
+        return("DrawRect(top={} left={} " +
+            "bottom={} right={} color={}"
+        ).format(
+            self.top, self.left, self.bottom,
+            self.right, self.color
+        )
+
     def execute(self, canvas):
         paint = skia.Paint(
             Color=parse_color(self.color)

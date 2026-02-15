@@ -25,6 +25,16 @@ class Blend:
         for cmd in self.children:
             self.rect.join(cmd.rect)
 
+    def __repr__(self):
+        args = ""
+        if self.opacity < 1:
+            args += ", opacity={}".format(self.opacity)
+        if self.blend_mode:
+            args += ", blend_mode={}".format(self.blend_mode)
+        if not args:
+            args = ", <no-op>"
+        return "Blend({})".format(args[2:])
+
     def execute(self, canvas):
         paint = skia.Paint(
             Alphaf=self.opacity,

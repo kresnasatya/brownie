@@ -14,6 +14,10 @@ class DrawText:
         self.text = text
         self.font = font
         self.color = color
+        self.children = []
+
+    def __repr__(self):
+        return "DrawText(text={})".format(self.text)
 
     def execute(self, canvas):
         paint = skia.Paint(

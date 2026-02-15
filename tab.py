@@ -1,7 +1,7 @@
 import dukpy
 import math
 import urllib.parse
-from dom_utils import VSTEP, SCROLL_STEP, tree_to_list, style, cascade_priority, paint_tree
+from dom_utils import VSTEP, SCROLL_STEP, tree_to_list, style, cascade_priority, paint_tree, print_tree
 from html_parser import HTMLParser
 from css_parser import CSSParser
 from element import Element
@@ -170,6 +170,9 @@ class Tab:
         if clamped_scroll != self.scroll:
             self.scroll_changed_in_tab = True
         self.scroll = clamped_scroll
+
+        for item in self.display_list:
+            print_tree(item)
 
         # self.browser.set_needs_raster_and_draw() # I comment this line because in GitHub repo it disappears. Huft, it's annoying
         self.browser.measure.stop('render')
