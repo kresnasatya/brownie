@@ -125,3 +125,8 @@ def paint_visual_effects(node, cmds, rect):
     return [
         Blend(opacity, blend_mode, cmds)
     ]
+
+def add_parent_pointers(nodes, parent=None):
+    for node in nodes:
+        node.parent = parent
+        add_parent_pointers(node.children, node)

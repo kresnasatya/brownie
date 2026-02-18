@@ -2,10 +2,11 @@ import ctypes
 import sdl2
 import skia
 from visual_utils import parse_color
+from paint_command import PaintCommand
 
-class DrawLine:
+class DrawLine(PaintCommand):
     def __init__(self, x1, y1, x2, y2, color, thickness):
-        self.rect = skia.Rect.MakeLTRB(x1, y1, x2, y2)
+        super().__init__(skia.Rect.MakeLTRB(x1, y1, x2, y2))
         self.color = color
         self.thickness = thickness
 

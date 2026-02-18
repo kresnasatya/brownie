@@ -6,10 +6,14 @@ import math
 import threading
 
 from dom_utils import WIDTH, HEIGHT, VSTEP, SCROLL_STEP
+from dom_utils import tree_to_list, add_parent_pointers
 from chrome import Chrome
 from tab import Tab
 from task import Task
 from measure_time import MeasureTime
+from paint_command import PaintCommand
+from composited_layer import CompositedLayer
+from draw_composited_layer import DrawCompositedLayer
 
 REFRESH_RATE_SEC = .033
 
@@ -90,6 +94,9 @@ class Browser:
         self.active_tab_height = 0
         self.active_tab_display_list = None
 
+        self.composited_layers = []
+        self.draw_list = []
+
     def set_needs_raster_and_draw(self):
         self.needs_raster_and_draw = True
 
@@ -145,36 +152,24 @@ class Browser:
             self.set_needs_raster_and_draw()
         self.lock.release()
 
-    def raster_and_draw(self):
+    def composite_raster_and_draw(self):
         self.lock.acquire(blocking=True)
         if not self.needs_raster_and_draw:
             self.lock.release()
             return
-        self.measure.time('raster/draw')
+        self.measure.time('composite_raster_and_draw')
+        self.composite()
         self.raster_chrome()
         self.raster_tab()
+        self.paint_draw_list()
         self.draw()
         self.needs_raster_and_draw = False
-        self.measure.stop('raster/draw')
+        self.measure.stop('composite_raster_and_draw')
         self.lock.release()
 
     def raster_tab(self):
-        if self.active_tab_height == None:
-            return
-        if not self.tab_surface or \
-                self.active_tab_height != self.tab_surface.height():
-            self.tab_surface = skia.Surface.MakeRenderTarget(
-                self.skia_context, skia.Budgeted.kNo,
-                skia.ImageInfo.MakeN32Premul(
-                    WIDTH, self.active_tab_height
-                )
-            )
-            assert self.tab_surface is not None
-
-        canvas = self.tab_surface.getCanvas()
-        canvas.clear(skia.ColorWHITE)
-        for cmd in self.active_tab_display_list:
-            cmd.execute(canvas)
+        for composited_layer in self.composited_layers:
+            composited_layer.raster()
 
     def raster_chrome(self):
         canvas = self.chrome_surface.getCanvas()
@@ -187,14 +182,10 @@ class Browser:
         canvas = self.root_surface.getCanvas()
         canvas.clear(skia.ColorWHITE)
 
-        tab_rect = skia.Rect.MakeLTRB(
-            0, self.chrome.bottom, WIDTH, HEIGHT
-        )
-        tab_offset = self.chrome.bottom - self.active_tab.scroll
         canvas.save()
-        canvas.clipRect(tab_rect)
-        canvas.translate(0, tab_offset)
-        self.tab_surface.draw(canvas, 0, 0)
+        canvas.translate(0, self.chrome.bottom - self.active_tab_scroll)
+        for item in self.draw_list:
+            item.execute(canvas)
         canvas.restore()
 
         chrome_rect = skia.Rect.MakeLTRB(
@@ -273,3 +264,34 @@ class Browser:
             self.animation_timer = None
             self.set_needs_raster_and_draw()
         self.lock.release()
+
+    def composite(self):
+        self.composited_layers = []
+        add_parent_pointers(self.active_tab_display_list)
+        all_commands = []
+        for cmd in self.active_tab_display_list:
+            all_commands = tree_to_list(cmd, all_commands)
+        paint_commands = [cmd for cmd in all_commands
+            if isinstance(cmd, PaintCommand)]
+        for cmd in paint_commands:
+            layer = CompositedLayer(self.skia_context, cmd)
+            self.composited_layers.append(layer)
+
+    def paint_draw_list(self):
+        new_effects = {}
+        self.draw_list = []
+        for composited_layer in self.composited_layers:
+            current_effect = DrawCompositedLayer(composited_layer)
+            if not composited_layer.display_items: continue
+            parent = composited_layer.display_items[0].parent
+            while parent:
+                if parent in new_effects:
+                    new_parent = new_effects[parent]
+                    new_parent.children.append(current_effect)
+                    break
+                else:
+                    current_effect = parent.clone(current_effect)
+                    new_effects[parent] = current_effect
+                    parent = parent.parent
+            if not parent:
+                self.draw_list.append(current_effect)

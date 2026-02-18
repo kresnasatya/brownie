@@ -2,19 +2,18 @@ import ctypes
 import sdl2
 import skia
 from visual_utils import parse_color
+from paint_command import PaintCommand
 
-
-class DrawText:
+class DrawText(PaintCommand):
     def __init__(self, x1, y1, text, font, color):
-        self.rect = skia.Rect.MakeLTRB(
-            x1, y1,
-            x1 + font.measureText(text),
-            y1 - font.getMetrics().fAscent + font.getMetrics().fDescent
-        )
         self.text = text
         self.font = font
         self.color = color
-        self.children = []
+        super().__init__(skia.Rect.MakeLTRB(
+            x1, y1,
+            x1 + font.measureText(text),
+            y1 - font.getMetrics().fAscent + font.getMetrics().fDescent
+        ))
 
     def __repr__(self):
         return "DrawText(text={})".format(self.text)

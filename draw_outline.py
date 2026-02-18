@@ -2,10 +2,11 @@ import ctypes
 import sdl2
 import skia
 from visual_utils import parse_color
+from paint_command import PaintCommand
 
-class DrawOutline:
+class DrawOutline(PaintCommand):
     def __init__(self, rect, color, thickness):
-        self.rect = rect
+        super().__init__(rect)
         self.color = color
         self.thickness = thickness
 

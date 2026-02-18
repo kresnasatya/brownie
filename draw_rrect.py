@@ -2,13 +2,13 @@ import ctypes
 import sdl2
 import skia
 from visual_utils import parse_color
+from paint_command import PaintCommand
 
-class DrawRRect:
+class DrawRRect(PaintCommand):
     def __init__(self, rect, radius, color):
-        self.rect = rect
+        super().__init__(rect)
         self.rrect = skia.RRect.MakeRectXY(rect, radius, radius)
         self.color = color
-        self.children = []
 
     def __repr__(self):
         return "DrawRRect(rect={}, color={})".format(
