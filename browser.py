@@ -6,7 +6,7 @@ import math
 import threading
 
 from dom_utils import WIDTH, HEIGHT, VSTEP, SCROLL_STEP
-from dom_utils import tree_to_list, add_parent_pointers
+from dom_utils import tree_to_list, add_parent_pointers, print_tree
 from chrome import Chrome
 from tab import Tab
 from task import Task
@@ -185,6 +185,7 @@ class Browser:
         canvas.save()
         canvas.translate(0, self.chrome.bottom - self.active_tab_scroll)
         for item in self.draw_list:
+            print_tree(item)
             item.execute(canvas)
         canvas.restore()
 

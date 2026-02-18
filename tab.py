@@ -171,9 +171,6 @@ class Tab:
             self.scroll_changed_in_tab = True
         self.scroll = clamped_scroll
 
-        for item in self.display_list:
-            print_tree(item)
-
         # self.browser.set_needs_raster_and_draw() # I comment this line because in GitHub repo it disappears. Huft, it's annoying
         self.browser.measure.stop('render')
 
