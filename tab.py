@@ -23,7 +23,9 @@ class Tab:
         self.history = []
         self.focus = None
         self.js = None
-        self.needs_render = False
+        self.needs_style = False
+        self.needs_layout = False
+        self.needs_paint = False
         self.browser = browser
         self.task_runner = TaskRunner(self)
         self.task_runner.start_thread()
@@ -153,18 +155,35 @@ class Tab:
         return self.allowed_origins == None or url.origin() in self.allowed_origins
 
     def set_needs_render(self):
-        self.needs_render = True
+        self.needs_style = True
+        self.browser.set_needs_animation_frame(self)
+
+    def set_needs_layout(self):
+        self.needs_layout = True
+        self.browser.set_needs_animation_frame(self)
+
+    def set_needs_paint(self):
+        self.needs_paint = True
         self.browser.set_needs_animation_frame(self)
 
     def render(self):
-        if not self.needs_render: return
         self.browser.measure.time('render')
-        style(self.nodes, sorted(self.rules, key=cascade_priority))
-        self.document = DocumentLayout(self.nodes)
-        self.document.layout()
-        self.display_list = []
-        paint_tree(self.document, self.display_list)
-        self.needs_render = False
+
+        if self.needs_style:
+            style(self.nodes, sorted(self.rules, key=cascade_priority), self)
+            self.needs_layout = True
+            self.needs_style = False
+
+        if self.needs_layout:
+            self.document = DocumentLayout(self.nodes)
+            self.document.layout()
+            self.needs_paint = True
+            self.needs_layout = False
+
+        if self.needs_paint:
+            self.display_list = []
+            paint_tree(self.document, self.display_list)
+            self.needs_paint = False
 
         clamped_scroll = self.clamp_scroll(self.scroll)
         if clamped_scroll != self.scroll:
@@ -208,6 +227,14 @@ class Tab:
         self.browser.measure.time('script-runRAFHandlers')
         self.js.interp.evaljs("__runRAFHandlers()")
         self.browser.measure.stop('script-runRAFHandlers')
+
+        for node in tree_to_list(self.nodes, []):
+            for (property_name, animation) in node.animations.items():
+                value = animation.animate()
+                if value:
+                    node.style[property_name] = value
+                    self.set_needs_layout()
+
         self.render()
 
         scroll = None

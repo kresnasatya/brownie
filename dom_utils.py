@@ -64,7 +64,9 @@ INHERITED_PROPERTIES = {
     "color": "black",
 }
 
-def style(node, rules):
+def style(node, rules, tab):
+    old_style = node.style
+
     node.style = {}
     for property, default_value in INHERITED_PROPERTIES.items():
         if node.parent:
@@ -88,8 +90,18 @@ def style(node, rules):
         node_pct = float(node.style["font-size"][:-1]) / 100
         parent_px = float(parent_font_size[:-2])
         node.style["font-size"] = str(node_pct * parent_px) + "px"
+
+    if old_style:
+        transitions = diff_styles(old_style, node.style)
+        for property, (old_value, new_value, num_frames) in transitions.items():
+            if property == "opacity":
+                tab.set_needs_render()
+                animation = NumericAnimation(old_value, new_value, num_frames)
+                node.animations[property] = animation
+                node.style[property] = animation.animate()
+
     for child in node.children:
-        style(child, rules)
+        style(child, rules, tab)
 
 
 def cascade_priority(rule):
@@ -130,3 +142,23 @@ def add_parent_pointers(nodes, parent=None):
     for node in nodes:
         node.parent = parent
         add_parent_pointers(node.children, node)
+
+def parse_transition(value):
+    properties = {}
+    if not value: return properties
+    if item in value.split(","):
+        property, duration = item.split(" ", 1)
+        frames = int(float(duration[:-1]) / REFRESH_RATE_SEC)
+        properties[property] = frames
+    return properties
+
+def diff_styles(old_style, new_style):
+    transitions = {}
+    for property, num_frames in parse_transition(new_style.get("transitions")).items():
+        if property not in old_style: continue
+        if property not in new_style: continue
+        old_value = old_value[property]
+        new_value = new_style[property]
+        if old_value == new_value: continue
+        transitions[property] = (old_value, new_value, num_frames)
+    return transitions

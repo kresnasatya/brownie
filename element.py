@@ -4,8 +4,9 @@ class Element:
         self.attributes = attributes
         self.children = []
         self.parent = parent
-        self.style = {}
         self.is_focused = False
+        self.style = {}
+        self.animations = {}
 
     def __repr__(self) -> str:
         return "<" + self.tag + ">"

@@ -25,19 +25,25 @@ class CSSParser:
             raise Exception("Parsing error")
         self.i += 1
 
-    def pair(self):
+    def until_chars(self, chars):
+        start = self.i
+        while self.i < len(self.s) and self.s[self.i] not in chars:
+            self.i += 1
+        return self.s[start:self.i]
+
+    def pair(self, until):
         prop = self.word()
         self.whitespace()
         self.literal(":")
         self.whitespace()
-        val = self.word()
-        return prop.casefold(), val
+        val = self.until_chars(until)
+        return prop.casefold(), val.strip()
 
     def body(self):
         pairs = {}
         while self.i < len(self.s) and self.s[self.i] != "}":
             try:
-                prop, val = self.pair()
+                prop, val = self.pair([";", "}"])
                 pairs[prop] = val
                 self.whitespace()
                 self.literal(";")
