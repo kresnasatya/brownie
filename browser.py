@@ -1,67 +1,74 @@
 import ctypes
-import sdl2
-import skia
-import OpenGL.GL
 import math
 import threading
 
-from dom_utils import WIDTH, HEIGHT, VSTEP, SCROLL_STEP
-from dom_utils import tree_to_list, add_parent_pointers, print_tree
+import OpenGL.GL
+import sdl2
+import skia
+
 from chrome import Chrome
-from tab import Tab
-from task import Task
+from composited_layer import CompositedLayer
+from dom_utils import (
+    HEIGHT,
+    SCROLL_STEP,
+    VSTEP,
+    WIDTH,
+    add_parent_pointers,
+    print_tree,
+    tree_to_list,
+)
+from draw_composited_layer import DrawCompositedLayer
 from measure_time import MeasureTime
 from paint_command import PaintCommand
-from composited_layer import CompositedLayer
-from draw_composited_layer import DrawCompositedLayer
+from tab import Tab
+from task import Task
 
-REFRESH_RATE_SEC = .033
+REFRESH_RATE_SEC = 0.033
+
 
 class Browser:
     def __init__(self):
         self.chrome = Chrome(self)
 
-        self.sdl_window = sdl2.SDL_CreateWindow(b"Browser",
+        self.sdl_window = sdl2.SDL_CreateWindow(
+            b"Browser",
             sdl2.SDL_WINDOWPOS_CENTERED,
             sdl2.SDL_WINDOWPOS_CENTERED,
-            WIDTH, HEIGHT,
-            sdl2.SDL_WINDOW_SHOWN | sdl2.SDL_WINDOW_OPENGL)
+            WIDTH,
+            HEIGHT,
+            sdl2.SDL_WINDOW_SHOWN | sdl2.SDL_WINDOW_OPENGL,
+        )
 
         sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_CONTEXT_MAJOR_VERSION, 3)
         sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_CONTEXT_MINOR_VERSION, 2)
+        sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG, True)
         sdl2.SDL_GL_SetAttribute(
-            sdl2.SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG, True
-        )
-        sdl2.SDL_GL_SetAttribute(
-            sdl2.SDL_GL_CONTEXT_PROFILE_MASK,
-            sdl2.SDL_GL_CONTEXT_PROFILE_CORE
+            sdl2.SDL_GL_CONTEXT_PROFILE_MASK, sdl2.SDL_GL_CONTEXT_PROFILE_CORE
         )
         self.gl_context = sdl2.SDL_GL_CreateContext(self.sdl_window)
-        print(("OpenGL initialized: vendor={}," + "renderer={}").format(
-            OpenGL.GL.glGetString(OpenGL.GL.GL_VENDOR),
-            OpenGL.GL.glGetString(OpenGL.GL.GL_RENDERER)
-        ))
+        print(
+            ("OpenGL initialized: vendor={}," + "renderer={}").format(
+                OpenGL.GL.glGetString(OpenGL.GL.GL_VENDOR),
+                OpenGL.GL.glGetString(OpenGL.GL.GL_RENDERER),
+            )
+        )
         self.skia_context = skia.GrDirectContext.MakeGL()
 
         self.root_surface = skia.Surface.MakeFromBackendRenderTarget(
             self.skia_context,
             skia.GrBackendRenderTarget(
-                WIDTH, HEIGHT, 0, 0,
-                skia.GrGLFramebufferInfo(
-                    0, OpenGL.GL.GL_RGBA8
-                )
+                WIDTH, HEIGHT, 0, 0, skia.GrGLFramebufferInfo(0, OpenGL.GL.GL_RGBA8)
             ),
             skia.kBottomLeft_GrSurfaceOrigin,
             skia.kRGBA_8888_ColorType,
-            skia.ColorSpace.MakeSRGB()
+            skia.ColorSpace.MakeSRGB(),
         )
         assert self.root_surface is not None
 
         self.chrome_surface = skia.Surface.MakeRenderTarget(
-            self.skia_context, skia.Budgeted.kNo,
-            skia.ImageInfo.MakeN32Premul(
-                WIDTH, math.ceil(self.chrome.bottom)
-            )
+            self.skia_context,
+            skia.Budgeted.kNo,
+            skia.ImageInfo.MakeN32Premul(WIDTH, math.ceil(self.chrome.bottom)),
         )
         assert self.chrome_surface is not None
 
@@ -72,15 +79,15 @@ class Browser:
         self.focus = None
 
         if sdl2.SDL_BYTEORDER == sdl2.SDL_BIG_ENDIAN:
-            self.RED_MASK = 0xff000000
-            self.GREEN_MASK = 0x00ff0000
-            self.BLUE_MASK = 0x0000ff00
-            self.ALPHA_MASK = 0x000000ff
+            self.RED_MASK = 0xFF000000
+            self.GREEN_MASK = 0x00FF0000
+            self.BLUE_MASK = 0x0000FF00
+            self.ALPHA_MASK = 0x000000FF
         else:
-            self.RED_MASK = 0x000000ff
-            self.GREEN_MASK = 0x0000ff00
-            self.BLUE_MASK = 0x00ff0000
-            self.ALPHA_MASK = 0xff000000
+            self.RED_MASK = 0x000000FF
+            self.GREEN_MASK = 0x0000FF00
+            self.BLUE_MASK = 0x00FF0000
+            self.ALPHA_MASK = 0xFF000000
 
         self.animation_timer = None
         self.needs_raster_and_draw = False
@@ -110,12 +117,9 @@ class Browser:
         if not self.active_tab_height:
             self.lock.release()
             return
-        self.active_tab_scroll = self.clamp_scroll(
-            self.active_tab_scroll + SCROLL_STEP
-        )
+        self.active_tab_scroll = self.clamp_scroll(self.active_tab_scroll + SCROLL_STEP)
         self.set_needs_raster_and_draw()
         self.needs_animation_frame = True
-        self.raster_and_draw()
         self.lock.release()
 
     def handle_click(self, e):
@@ -157,14 +161,14 @@ class Browser:
         if not self.needs_raster_and_draw:
             self.lock.release()
             return
-        self.measure.time('composite_raster_and_draw')
+        self.measure.time("composite_raster_and_draw")
         self.composite()
         self.raster_chrome()
         self.raster_tab()
         self.paint_draw_list()
         self.draw()
         self.needs_raster_and_draw = False
-        self.measure.stop('composite_raster_and_draw')
+        self.measure.stop("composite_raster_and_draw")
         self.lock.release()
 
     def raster_tab(self):
@@ -189,9 +193,7 @@ class Browser:
             item.execute(canvas)
         canvas.restore()
 
-        chrome_rect = skia.Rect.MakeLTRB(
-            0, 0, WIDTH, self.chrome.bottom
-        )
+        chrome_rect = skia.Rect.MakeLTRB(0, 0, WIDTH, self.chrome.bottom)
         canvas.save()
         canvas.clipRect(chrome_rect)
         self.chrome_surface.draw(canvas, 0, 0)
@@ -236,6 +238,7 @@ class Browser:
             self.lock.release()
             task = Task(active_tab.run_animation_frame, scroll)
             active_tab.task_runner.schedule_task(task)
+
         self.lock.acquire(blocking=True)
         if self.needs_animation_frame and not self.animation_timer:
             self.animation_timer = threading.Timer(REFRESH_RATE_SEC, callback)
@@ -272,8 +275,7 @@ class Browser:
         all_commands = []
         for cmd in self.active_tab_display_list:
             all_commands = tree_to_list(cmd, all_commands)
-        paint_commands = [cmd for cmd in all_commands
-            if isinstance(cmd, PaintCommand)]
+        paint_commands = [cmd for cmd in all_commands if isinstance(cmd, PaintCommand)]
         for cmd in paint_commands:
             layer = CompositedLayer(self.skia_context, cmd)
             self.composited_layers.append(layer)
@@ -283,7 +285,8 @@ class Browser:
         self.draw_list = []
         for composited_layer in self.composited_layers:
             current_effect = DrawCompositedLayer(composited_layer)
-            if not composited_layer.display_items: continue
+            if not composited_layer.display_items:
+                continue
             parent = composited_layer.display_items[0].parent
             while parent:
                 if parent in new_effects:
