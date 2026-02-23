@@ -6,6 +6,7 @@ import OpenGL.GL
 import sdl2
 import skia
 
+from blend import Blend
 from chrome import Chrome
 from composited_layer import CompositedLayer
 from dom_utils import (
@@ -90,8 +91,10 @@ class Browser:
             self.ALPHA_MASK = 0xFF000000
 
         self.animation_timer = None
-        self.needs_raster_and_draw = False
         self.needs_animation_frame = True
+        self.needs_composite = False
+        self.needs_raster = False
+        self.needs_draw = False
         self.measure = MeasureTime()
         threading.current_thread().name = "Browser thread"
 
@@ -103,9 +106,7 @@ class Browser:
 
         self.composited_layers = []
         self.draw_list = []
-
-    def set_needs_raster_and_draw(self):
-        self.needs_raster_and_draw = True
+        self.composited_updates = {}
 
     def clamp_scroll(self, scroll):
         height = self.active_tab_height
@@ -118,21 +119,27 @@ class Browser:
             self.lock.release()
             return
         self.active_tab_scroll = self.clamp_scroll(self.active_tab_scroll + SCROLL_STEP)
-        self.set_needs_raster_and_draw()
+        self.set_needs_raster()
         self.needs_animation_frame = True
         self.lock.release()
+
+    def clear_data(self):
+        self.active_tab_scroll = 0
+        self.active_tab_url = None
+        self.display_list = []
+        self.composited_layers = []
+        self.composited_updates = {}
 
     def handle_click(self, e):
         self.lock.acquire(blocking=True)
         if e.y < self.chrome.bottom:
             self.focus = None
             self.chrome.click(e.x, e.y)
-            self.set_needs_raster_and_draw()
+            self.set_needs_raster()
         else:
             if self.focus != "content":
-                self.focus = "content"
-                self.chrome.focus = None
-                self.set_needs_raster_and_draw()
+                self.set_needs_raster()
+            self.focus = "content"
             self.chrome.blur()
             tab_y = e.y - self.chrome.bottom
             task = Task(self.active_tab.click, e.x, tab_y)
@@ -144,7 +151,7 @@ class Browser:
         if not (0x20 <= ord(char) < 0x7F):
             return
         if self.chrome.keypress(char):
-            self.set_needs_raster_and_draw()
+            self.set_needs_raster()
         elif self.focus == "content":
             task = Task(self.active_tab.keypress, char)
             self.active_tab.task_runner.schedule_task(task)
@@ -153,22 +160,27 @@ class Browser:
     def handle_enter(self):
         self.lock.acquire(blocking=True)
         if self.chrome.enter():
-            self.set_needs_raster_and_draw()
+            self.set_needs_raster()
         self.lock.release()
 
     def composite_raster_and_draw(self):
         self.lock.acquire(blocking=True)
-        if not self.needs_raster_and_draw:
+        if not self.needs_composite and not self.needs_raster and not self.needs_draw:
             self.lock.release()
             return
         self.measure.time("composite_raster_and_draw")
-        self.composite()
-        self.raster_chrome()
-        self.raster_tab()
-        self.paint_draw_list()
-        self.draw()
-        self.needs_raster_and_draw = False
+        if self.needs_composite:
+            self.composite()
+        if self.needs_raster:
+            self.raster_chrome()
+            self.raster_tab()
+        if self.needs_draw:
+            self.paint_draw_list()
+            self.draw()
         self.measure.stop("composite_raster_and_draw")
+        self.needs_composite = False
+        self.needs_raster = False
+        self.needs_draw = False
         self.lock.release()
 
     def raster_tab(self):
@@ -216,9 +228,7 @@ class Browser:
 
     def set_active_tab(self, tab):
         self.active_tab = tab
-        self.active_tab_scroll = 0
-        self.active_tab_url = None
-        # self.active_tab_display_list = None
+        self.clear_data()
         self.needs_animation_frame = True
         self.animation_timer = None
 
@@ -266,8 +276,25 @@ class Browser:
             if data.display_list:
                 self.active_tab_display_list = data.display_list
             self.animation_timer = None
-            self.set_needs_raster_and_draw()
+            self.composited_updates = data.composited_updates
+            if self.composited_updates == None:
+                self.composited_updates = {}
+                self.set_needs_composite()
+            else:
+                self.set_needs_draw()
         self.lock.release()
+
+    def set_needs_raster(self):
+        self.needs_raster = True
+        self.needs_draw = True
+
+    def set_needs_composite(self):
+        self.needs_composite = True
+        self.needs_raster = True
+        self.needs_draw = True
+
+    def set_needs_draw(self):
+        self.needs_draw = True
 
     def composite(self):
         self.composited_layers = []
@@ -280,6 +307,14 @@ class Browser:
             layer = CompositedLayer(self.skia_context, cmd)
             self.composited_layers.append(layer)
 
+    def get_latest(self, effect):
+        node = effect.node
+        if node not in self.composited_updates:
+            return effect
+        if not isinstance(effect, Blend):
+            return effect
+        return self.composited_updates[node]
+
     def paint_draw_list(self):
         new_effects = {}
         self.draw_list = []
@@ -289,12 +324,12 @@ class Browser:
                 continue
             parent = composited_layer.display_items[0].parent
             while parent:
-                if parent in new_effects:
-                    new_parent = new_effects[parent]
-                    new_parent.children.append(current_effect)
+                new_parent = self.get_latest(parent)
+                if new_parent in new_effects:
+                    new_effects[new_parent].children.append(current_effect)
                     break
                 else:
-                    current_effect = parent.clone(current_effect)
+                    current_effect = new_parent.clone(current_effect)
                     new_effects[parent] = current_effect
                     parent = parent.parent
             if not parent:

@@ -10,12 +10,14 @@ Then, export homebrew bin to PATH in order to make separated python & python-tk 
 """
 
 import ctypes
+
 import sdl2
 import skia
-from element import Element
+
 from blend import Blend
-from draw_rrect import DrawRRect
 from css_parser import CSSParser
+from draw_rrect import DrawRRect
+from element import Element
 
 WIDTH, HEIGHT = 800, 600
 HSTEP, VSTEP = 13, 18
@@ -23,6 +25,7 @@ HSTEP, VSTEP = 13, 18
 SCROLL_STEP = 100
 
 FONTS = {}
+
 
 def get_font(size, weight, style):
     key = (weight, style)
@@ -37,13 +40,15 @@ def get_font(size, weight, style):
             skia_style = skia.FontStyle.kUpright_Slant
         skia_width = skia.FontStyle.kNormal_Width
         style_info = skia.FontStyle(skia_weight, skia_width, skia_style)
-        font = skia.Typeface('Arial', style_info)
+        font = skia.Typeface("Arial", style_info)
         FONTS[key] = font
     return skia.Font(FONTS[key], size)
+
 
 def linespace(font):
     metrics = font.getMetrics()
     return metrics.fDescent - metrics.fAscent
+
 
 def print_tree(node, indent=0):
     print(" " * indent, node)
@@ -57,12 +62,14 @@ def tree_to_list(tree, list):
         tree_to_list(child, list)
     return list
 
+
 INHERITED_PROPERTIES = {
     "font-size": "16px",
     "font-style": "normal",
     "font-weight": "normal",
     "color": "black",
 }
+
 
 def style(node, rules, tab):
     old_style = node.style
@@ -108,8 +115,9 @@ def cascade_priority(rule):
     selector, body = rule
     return selector.priority
 
+
 def paint_tree(layout_object, display_list):
-    cmds = [] # Initialize before any conditional logic
+    cmds = []  # Initialize before any conditional logic
 
     if layout_object.should_paint():
         cmds = layout_object.paint()
@@ -120,6 +128,7 @@ def paint_tree(layout_object, display_list):
         cmds = layout_object.paint_effects(cmds)
     display_list.extend(cmds)
 
+
 def paint_visual_effects(node, cmds, rect):
     opacity = float(node.style.get("opacity", "1.0"))
     blend_mode = node.style.get("mix-blend-mode")
@@ -127,38 +136,45 @@ def paint_visual_effects(node, cmds, rect):
     if node.style.get("overflow", "visible") == "clip":
         if not blend_mode:
             blend_mode = "source-over"
-        border_radius = float(node.style.get(
-            "border-radius", "0px"
-        )[:-2])
-        cmds.append(Blend(1.0, "destination-in", [
-            DrawRRect(rect, border_radius, "white")
-        ]))
+        border_radius = float(node.style.get("border-radius", "0px")[:-2])
+        cmds.append(
+            Blend(
+                1.0, "destination-in", [DrawRRect(rect, border_radius, "white")], None
+            )
+        )
 
-    return [
-        Blend(opacity, blend_mode, cmds)
-    ]
+    blend_op = Blend(opacity, blend_mode, cmds, node)
+    node.blend_op = blend_op
+    return [blend_op]
+
 
 def add_parent_pointers(nodes, parent=None):
     for node in nodes:
         node.parent = parent
         add_parent_pointers(node.children, node)
 
+
 def parse_transition(value):
     properties = {}
-    if not value: return properties
+    if not value:
+        return properties
     if item in value.split(","):
         property, duration = item.split(" ", 1)
         frames = int(float(duration[:-1]) / REFRESH_RATE_SEC)
         properties[property] = frames
     return properties
 
+
 def diff_styles(old_style, new_style):
     transitions = {}
     for property, num_frames in parse_transition(new_style.get("transitions")).items():
-        if property not in old_style: continue
-        if property not in new_style: continue
+        if property not in old_style:
+            continue
+        if property not in new_style:
+            continue
         old_value = old_value[property]
         new_value = new_style[property]
-        if old_value == new_value: continue
+        if old_value == new_value:
+            continue
         transitions[property] = (old_value, new_value, num_frames)
     return transitions

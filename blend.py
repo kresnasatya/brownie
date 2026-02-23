@@ -1,7 +1,10 @@
 import ctypes
+
 import sdl2
 import skia
+
 from visual_effect import VisualEffect
+
 
 def parse_blend_mode(blend_mode_str):
     if blend_mode_str == "multiply":
@@ -15,9 +18,10 @@ def parse_blend_mode(blend_mode_str):
     else:
         return skia.BlendMode.kSrcOver
 
+
 class Blend(VisualEffect):
-    def __init__(self, opacity, blend_mode, children):
-        super().__init__(skia.Rect.MakeEmpty(), children)
+    def __init__(self, opacity, blend_mode, children, node):
+        super().__init__(skia.Rect.MakeEmpty(), children, node)
         self.opacity = opacity
         self.blend_mode = blend_mode
         self.should_save = self.blend_mode or self.opacity < 1
@@ -39,8 +43,7 @@ class Blend(VisualEffect):
 
     def execute(self, canvas):
         paint = skia.Paint(
-            Alphaf=self.opacity,
-            BlendMode=parse_blend_mode(self.blend_mode)
+            Alphaf=self.opacity, BlendMode=parse_blend_mode(self.blend_mode)
         )
         if self.should_save:
             canvas.saveLayer(None, paint)
@@ -50,4 +53,4 @@ class Blend(VisualEffect):
             canvas.restore()
 
     def clone(self, child):
-        return Blend(self.opacity, self.blend_mode, [child])
+        return Blend(self.opacity, self.blend_mode, [child], self.node)
