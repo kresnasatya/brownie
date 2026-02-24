@@ -302,10 +302,20 @@ class Browser:
         all_commands = []
         for cmd in self.active_tab_display_list:
             all_commands = tree_to_list(cmd, all_commands)
-        paint_commands = [cmd for cmd in all_commands if isinstance(cmd, PaintCommand)]
-        for cmd in paint_commands:
-            layer = CompositedLayer(self.skia_context, cmd)
-            self.composited_layers.append(layer)
+        non_composited_commands = [
+            cmd
+            for cmd in all_commands
+            if isinstance(cmd, PaintCommand) or not cmd.needs_compositing
+            if not cmd.parent or cmd.parent.needs_compositing
+        ]
+        for cmd in non_composited_commands:
+            for layer in reversed(self.composited_layers):
+                if layer.can_merge(cmd):
+                    layer.add(cmd)
+                    break
+            else:
+                layer = CompositedLayer(self.skia_context, cmd)
+                self.composited_layers.append(layer)
 
     def get_latest(self, effect):
         node = effect.node

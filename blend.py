@@ -26,6 +26,9 @@ class Blend(VisualEffect):
         self.blend_mode = blend_mode
         self.should_save = self.blend_mode or self.opacity < 1
 
+        if self.should_save:
+            self.needs_compositing = True
+
         self.children = children
         self.rect = skia.Rect.MakeEmpty()
         for cmd in self.children:
