@@ -1,5 +1,8 @@
+import ctypes
 import math
 import urllib.parse
+
+import skia
 
 from commit_data import CommitData
 from css_parser import CSSParser
@@ -7,6 +10,7 @@ from document_layout import DocumentLayout
 from dom_utils import (
     SCROLL_STEP,
     VSTEP,
+    absolute_bounds_for_obj,
     cascade_priority,
     paint_tree,
     style,
@@ -44,10 +48,11 @@ class Tab:
         self.render()
         self.focus = None
         y += self.scroll
+        loc_rect = skia.Rect.MakeXYWH(x, y, 1, 1)
         objs = [
             obj
             for obj in tree_to_list(self.document, [])
-            if obj.x <= x < obj.x + obj.width and obj.y <= y < obj.y + obj.height
+            if absolute_bounds_for_obj(obj).intersects(loc_rect)
         ]
         if not objs:
             return

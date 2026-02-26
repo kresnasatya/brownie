@@ -57,3 +57,19 @@ class Blend(VisualEffect):
 
     def clone(self, child):
         return Blend(self.opacity, self.blend_mode, [child], self.node)
+
+    # special case for clipping
+    def map(self, rect):
+        if (
+            self.children
+            and isinstance(self.children[-1], Blend)
+            and self.children[-1].blend_mode == "destination-in"
+        ):
+            bounds = rect.makeOffset(0.0, 0.0)
+            bounds.intersect(self.children[-1].rect)
+            return bounds
+        else:
+            return rect
+
+    def unmap(self, rect):
+        return rect

@@ -1,5 +1,6 @@
 from element import Element
 
+
 class CSSParser:
     def __init__(self, s) -> None:
         self.s = s
@@ -11,8 +12,12 @@ class CSSParser:
 
     def word(self):
         start = self.i
+        in_quote = False
         while self.i < len(self.s):
-            if self.s[self.i].isalnum() or self.s[self.i] in "#-.%":
+            cur = self.s[self.i]
+            if cur == "'":
+                in_quote = not in_quote
+            if cur.isalnum() or cur in "#-.%" or (in_quote and cur == ":"):
                 self.i += 1
             else:
                 break
@@ -29,7 +34,7 @@ class CSSParser:
         start = self.i
         while self.i < len(self.s) and self.s[self.i] not in chars:
             self.i += 1
-        return self.s[start:self.i]
+        return self.s[start : self.i]
 
     def pair(self, until):
         prop = self.word()
@@ -95,6 +100,7 @@ class CSSParser:
                     break
         return rules
 
+
 class TagSelector:
     def __init__(self, tag):
         self.tag = tag
@@ -102,6 +108,7 @@ class TagSelector:
 
     def matches(self, node):
         return isinstance(node, Element) and self.tag == node.tag
+
 
 class DescendantSelector:
     def __init__(self, ancestor, descendant) -> None:

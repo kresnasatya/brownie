@@ -11,10 +11,11 @@ from chrome import Chrome
 from composited_layer import CompositedLayer
 from dom_utils import (
     HEIGHT,
+    REFRESH_RATE_SEC,
     SCROLL_STEP,
-    VSTEP,
     WIDTH,
     add_parent_pointers,
+    local_to_absolute,
     print_tree,
     tree_to_list,
 )
@@ -23,8 +24,6 @@ from measure_time import MeasureTime
 from paint_command import PaintCommand
 from tab import Tab
 from task import Task
-
-REFRESH_RATE_SEC = 0.033
 
 
 class Browser:
@@ -313,6 +312,11 @@ class Browser:
                 if layer.can_merge(cmd):
                     layer.add(cmd)
                     break
+                elif skia.Rect.Intersects(
+                    layer.absolute_bounds(), local_to_absolute(cmd, cmd.rect)
+                ):
+                    layer = CompositedLayer(self.skia_context, cmd)
+                    self.composited_layers.append(layer)
             else:
                 layer = CompositedLayer(self.skia_context, cmd)
                 self.composited_layers.append(layer)

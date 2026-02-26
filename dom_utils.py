@@ -18,6 +18,8 @@ from blend import Blend
 from css_parser import CSSParser
 from draw_rrect import DrawRRect
 from element import Element
+from numeric_animation import NumericAnimation
+from transform import Transform, map_translation
 
 WIDTH, HEIGHT = 800, 600
 HSTEP, VSTEP = 13, 18
@@ -25,6 +27,8 @@ HSTEP, VSTEP = 13, 18
 SCROLL_STEP = 100
 
 FONTS = {}
+
+REFRESH_RATE_SEC = 0.033
 
 
 def get_font(size, weight, style):
@@ -132,6 +136,7 @@ def paint_tree(layout_object, display_list):
 def paint_visual_effects(node, cmds, rect):
     opacity = float(node.style.get("opacity", "1.0"))
     blend_mode = node.style.get("mix-blend-mode")
+    translation = parse_transform(node.style.get("transform", ""))
 
     if node.style.get("overflow", "visible") == "clip":
         if not blend_mode:
@@ -145,7 +150,7 @@ def paint_visual_effects(node, cmds, rect):
 
     blend_op = Blend(opacity, blend_mode, cmds, node)
     node.blend_op = blend_op
-    return [blend_op]
+    return [Transform(translation, rect, node, [blend_op])]
 
 
 def add_parent_pointers(nodes, parent=None):
@@ -178,3 +183,39 @@ def diff_styles(old_style, new_style):
             continue
         transitions[property] = (old_value, new_value, num_frames)
     return transitions
+
+
+def parse_transform(transform_str):
+    if transform_str.find("translate(") < 0:
+        return None
+    # paren is parentheses
+    left_paren = transform_str.find("(")
+    right_paren = transform_str.find(")")
+    (x_px, y_px) = transform_str[left_paren + 1 : right_paren].split(",")
+    return (float(x_px[:-2]), float(y_px[:-2]))
+
+
+def absolute_bounds_for_obj(obj):
+    rect = skia.Rect.MakeXYWH(obj.x, obj.y, obj.width, obj.height)
+    cur = obj.node
+    while cur:
+        rect = map_translation(rect, parse_transform(cur.style.get("transform", "")))
+        cur = cur.parent
+    return rect
+
+
+def local_to_absolute(display_item, rect):
+    while display_item.parent:
+        rect = display_item.parent.map(rect)
+        display_item = display_item.parent
+    return rect
+
+
+def absolute_to_local(display_item, rect):
+    parent_chain = []
+    while display_item.parent:
+        parent_chain.append(display_item.parent)
+        display_item = display_item.parent
+    for parent in reversed(parent_chain):
+        rect = parent.unmap(rect)
+    return rect

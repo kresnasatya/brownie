@@ -35,7 +35,7 @@ class HTMLParser:
             return
         self.implicit_tags(None)
         parent = self.unfinished[-1]
-        node = Text(text, parent) # use Text class from lab08.py
+        node = Text(text, parent)  # use Text class from lab08.py
         parent.children.append(node)
 
     SELF_CLOSING_TAGS = [
@@ -69,11 +69,11 @@ class HTMLParser:
             parent.children.append(node)
         elif tag in self.SELF_CLOSING_TAGS:
             parent = self.unfinished[-1]
-            node = Element(tag, attributes, parent) # use Element class from lab08.py
+            node = Element(tag, attributes, parent)  # use Element class from lab08.py
             parent.children.append(node)
         else:
             parent = self.unfinished[-1] if self.unfinished else None
-            node = Element(tag, attributes, parent) # use Element class from lab08.py
+            node = Element(tag, attributes, parent)  # use Element class from lab08.py
             self.unfinished.append(node)
 
     def get_attributes(self, text):
@@ -83,7 +83,7 @@ class HTMLParser:
         for attrpair in parts[1:]:
             if "=" in attrpair:
                 key, value = attrpair.split("=", 1)
-                if len(value) > 2 and value[0] in ["'", "\""]:
+                if len(value) > 2 and value[0] in ["'", '"']:
                     value = value[1:-1]
                 attributes[key.casefold()] = value
             else:

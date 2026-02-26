@@ -2,6 +2,7 @@ import ctypes
 
 import skia
 
+from dom_utils import absolute_to_local, local_to_absolute
 from draw_outline import DrawOutline
 
 SHOW_COMPOSITED_LAYER_BORDERS = True
@@ -16,7 +17,7 @@ class CompositedLayer:
     def composited_bounds(self):
         rect = skia.Rect.MakeEmpty()
         for item in self.display_items:
-            rect.join(item.rect)
+            rect.join(absolute_to_local(item, local_to_absolute(item, item.rect)))
         rect.outset(1, 1)
         return rect
 
@@ -53,3 +54,9 @@ class CompositedLayer:
 
     def can_merge(self, display_item):
         return display_item.parent == self.display_items[0].parent
+
+    def absolute_bounds(self):
+        rect = skia.Rect.MakeEmpty()
+        for item in self.display_items:
+            rect.join(local_to_absolute(item, item.rect))
+        return rect
