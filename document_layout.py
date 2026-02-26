@@ -1,5 +1,6 @@
-from dom_utils import WIDTH, HEIGHT, HSTEP, VSTEP
 from block_layout import BlockLayout
+from dom_utils import HEIGHT, HSTEP, VSTEP, WIDTH, dpx
+
 
 class DocumentLayout:
     def __init__(self, node):
@@ -11,12 +12,13 @@ class DocumentLayout:
         self.width = None
         self.height = None
 
-    def layout(self):
+    def layout(self, zoom):
+        self.zoom = zoom
         child = BlockLayout(self.node, self, None)
         self.children.append(child)
-        self.width = WIDTH - 2 * HSTEP
-        self.x = HSTEP
-        self.y = VSTEP
+        self.width = WIDTH - 2 * dpx(HSTEP, self.zoom)
+        self.x = dpx(HSTEP, self.zoom)
+        self.y = dpx(VSTEP, self.zoom)
         child.layout()
         self.height = child.height
 

@@ -348,3 +348,11 @@ class Browser:
                     parent = parent.parent
             if not parent:
                 self.draw_list.append(current_effect)
+
+    def increment_zoom(self, increment):
+        task = Task(self.active_tab.zoom_by, increment)
+        self.active_tab.task_runner.schedule_task(task)
+
+    def reset_zoom(self):
+        task = Task(self.active_tab.rezet_zoom)
+        self.active_tab.task_runner.schedule_task(task)

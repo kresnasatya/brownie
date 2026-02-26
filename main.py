@@ -9,19 +9,23 @@ Then, export homebrew bin to PATH in order to make separated python & python-tk 
     export PATH="/opt/homebrew/bin:$PATH"
 """
 
-import sys
 import ctypes
+import sys
+
 import sdl2
 import skia
+from sdl2.keycode import SDLK_MINUS, SDLK_RCTRL
 
-from url import URL
 from browser import Browser
+from url import URL
+
 
 def mainloop(browser):
     event = sdl2.SDL_Event()
+    ctrl_down = False
     try:
         while True:
-            while sdl2.SDL_PollEvent(ctypes.byref(event)) != 0:
+            if sdl2.SDL_PollEvent(ctypes.byref(event)) != 0:
                 if event.type == sdl2.SDL_QUIT:
                     browser.handle_quit()
                     sdl2.SDL_Quit()
@@ -29,18 +33,37 @@ def mainloop(browser):
                 elif event.type == sdl2.SDL_MOUSEBUTTONUP:
                     browser.handle_click(event.button)
                 elif event.type == sdl2.SDL_KEYDOWN:
+                    if ctrl_down:
+                        if event.key.keysym.sym == sdl2.SDLK_EQUALS:
+                            browser.increment_zoom(True)
+                        elif event.key.keysym.sym == sdl2.SDLK_MINUS:
+                            browser.increment_zoom(False)
+                        elif event.key.keysym.sym == sdl2.SDLK_0:
+                            browser.reset_zoom()
                     if event.key.keysym.sym == sdl2.SDLK_RETURN:
                         browser.handle_enter()
                     elif event.key.keysym.sym == sdl2.SDLK_DOWN:
                         browser.handle_down()
+                    elif (
+                        event.key.keysym.sym == sdl2.SDLK_RCTRL
+                        or event.key.keysym.sym == sdl2.SDLK_LCTRL
+                    ):
+                        ctrl_down = True
+                elif event.type == sdl2.SDL_KEYUP:
+                    if (
+                        event.key.keysym.sym == sdl2.SDLK_RCTRL
+                        or event.key.keysym.sym == sdl2.SDLK_LCTRL
+                    ):
+                        ctrl_down = False
                 elif event.type == sdl2.SDL_TEXTINPUT:
-                    browser.handle_key(event.text.text.decode('utf8'))
+                    browser.handle_key(event.text.text.decode("utf8"))
             browser.composite_raster_and_draw()
             browser.schedule_animation_frame()
     except KeyboardInterrupt:
         browser.handle_quit()
         sdl2.SDL_Quit()
         sys.exit()
+
 
 if __name__ == "__main__":
     sdl2.SDL_Init(sdl2.SDL_INIT_EVENTS)

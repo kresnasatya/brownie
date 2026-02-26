@@ -43,6 +43,7 @@ class Tab:
         self.task_runner = TaskRunner(self)
         self.task_runner.start_thread()
         self.composited_updates = []
+        self.zoom = 1
 
     def click(self, x, y):
         self.render()
@@ -199,7 +200,7 @@ class Tab:
 
         if self.needs_layout:
             self.document = DocumentLayout(self.nodes)
-            self.document.layout()
+            self.document.layout(self.zoom)
             self.needs_paint = True
             self.needs_layout = False
 
@@ -244,6 +245,22 @@ class Tab:
                 return
             self.focus.attributes["value"] += char
             self.set_needs_render()
+
+    def zoom_by(self, increment):
+        if increment:
+            self.zoom *= 1.1
+            self.scroll *= 1.1
+        else:
+            self.zoom *= 1 / 1.1
+            self.scroll *= 1 / 1.1
+        self.scroll_changed_in_tab = True
+        self.set_needs_render()
+
+    def reset_zoom(self):
+        self.scroll /= self.zoom
+        self.zoom = 1
+        self.scroll_changed_in_tab = True
+        self.set_needs_render()
 
     def run_animation_frame(self, scroll):
         if not self.scroll_changed_in_tab:

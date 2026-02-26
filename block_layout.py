@@ -1,13 +1,15 @@
 import ctypes
+
 import sdl2
 import skia
-from dom_utils import get_font, paint_visual_effects
+
+from dom_utils import dpx, get_font, paint_visual_effects
 from draw_rrect import DrawRRect
-from text_layout import TextLayout
-from line_layout import LineLayout
-from text import Text
 from element import Element
 from input_layout import InputLayout
+from line_layout import LineLayout
+from text import Text
+from text_layout import TextLayout
 
 INPUT_WIDTH_PX = 200
 
@@ -51,6 +53,7 @@ BLOCK_ELEMENTS = [
     "summary",
 ]
 
+
 class BlockLayout:
     def __init__(self, node, parent, previous):
         self.node = node
@@ -68,6 +71,7 @@ class BlockLayout:
     def layout(self):
         self.x = self.parent.x
         self.width = self.parent.width
+        self.zoom = self.parent.zoom
         if self.previous:
             self.y = self.previous.y + self.previous.height
         else:
@@ -109,7 +113,8 @@ class BlockLayout:
         style = node.style["font-style"]
         if style == "normal":
             style = "roman"
-        size = int(float(node.style["font-size"][:2]) * 0.75)
+        px_size = float(node.style["font-size"][:2])
+        size = dpx(px_size * 0.75, self.zoom)
         font = get_font(size, weight, style)
         w = font.measureText(word)
         if self.cursor_x + w > self.width:
@@ -176,7 +181,7 @@ class BlockLayout:
                     self.recurse(child)
 
     def input(self, node):
-        w = INPUT_WIDTH_PX
+        w = dpx(INPUT_WIDTH_PX, self.zoom)
         if self.cursor_x + w > self.width:
             self.new_line()
         line = self.children[-1]
@@ -188,7 +193,8 @@ class BlockLayout:
         style = node.style["font-style"]
         if style == "normal":
             style = "roman"
-        size = int(float(node.style["font-size"][:-2]) * 0.75)
+        px_size = float(node.style["font-size"][:-2])
+        size = dpx(px_size * 0.75, self.zoom)
         font = get_font(size, weight, style)
 
         self.cursor_x += w + font.measureText(" ")
@@ -221,7 +227,5 @@ class BlockLayout:
         )
 
     def paint_effects(self, cmds):
-        cmds = paint_visual_effects(
-            self.node, cmds, self.self_rect()
-        )
+        cmds = paint_visual_effects(self.node, cmds, self.self_rect())
         return cmds

@@ -1,13 +1,16 @@
 import ctypes
+
 import sdl2
 import skia
-from dom_utils import get_font, linespace, paint_visual_effects
+
+from dom_utils import dpx, get_font, linespace, paint_visual_effects
+from draw_line import DrawLine
 from draw_rrect import DrawRRect
 from draw_text import DrawText
-from draw_line import DrawLine
 from text import Text
 
 INPUT_WIDTH_PX = 200
+
 
 class InputLayout:
     def __init__(self, node, parent, previous) -> None:
@@ -22,11 +25,13 @@ class InputLayout:
         self.font = None
 
     def layout(self):
+        self.zoom = self.parent.zoom
         weight = self.node.style["font-weight"]
         style = self.node.style["font-style"]
         if style == "normal":
             style = "roman"
-        size = int(float(self.node.style["font-size"][:2]) * 0.75)
+        px_size = float(self.node.style["font-size"][:2])
+        size = dpx(px_size * 0.75, self.zoom)
         self.font = get_font(size, weight, style)
         self.width = INPUT_WIDTH_PX
         if self.previous:
@@ -58,9 +63,7 @@ class InputLayout:
 
         if self.node.is_focused:
             cx = self.x + self.font.measureText(text)
-            cmds.append(DrawLine(
-                cx, self.y, cx, self.y + self.height, "black", 1
-            ))
+            cmds.append(DrawLine(cx, self.y, cx, self.y + self.height, "black", 1))
         return cmds
 
     def self_rect(self):

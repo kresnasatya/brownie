@@ -6,6 +6,7 @@ class LineLayout:
         self.children = []
 
     def layout(self):
+        self.zoom = self.parent.zoom
         self.width = self.parent.width
         self.x = self.parent.x
 
@@ -35,4 +36,4 @@ class LineLayout:
         return True
 
     def paint_effects(self, cmds):
-            return cmds
+        return cmds

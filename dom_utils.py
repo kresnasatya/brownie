@@ -219,3 +219,7 @@ def absolute_to_local(display_item, rect):
     for parent in reversed(parent_chain):
         rect = parent.unmap(rect)
     return rect
+
+
+def dpx(css_px, zoom):
+    return css_px * zoom

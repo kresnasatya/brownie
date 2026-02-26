@@ -1,5 +1,6 @@
-from dom_utils import get_font, linespace
+from dom_utils import dpx, get_font, linespace
 from draw_text import DrawText
+
 
 class TextLayout:
     def __init__(self, node, word, parent, previous):
@@ -10,11 +11,13 @@ class TextLayout:
         self.previous = previous
 
     def layout(self):
+        self.zoom = self.parent.zoom
         weight = self.node.style["font-weight"]
         style = self.node.style["font-style"]
         if style == "normal":
             style = "roman"
-        size = int(float(self.node.style["font-size"][:2]) * 0.75)
+        px_size = float(self.node.style["font-size"][:2])
+        size = dpx(px_size * 0.75, self.zoom)
         self.font = get_font(size, weight, style)
         self.width = self.font.measureText(self.word)
         if self.previous:
