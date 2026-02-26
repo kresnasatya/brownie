@@ -1,5 +1,8 @@
-from text import Text
+import shlex
+
 from element import Element
+from text import Text
+
 
 class HTMLParser:
     def __init__(self, body):
@@ -74,7 +77,7 @@ class HTMLParser:
             self.unfinished.append(node)
 
     def get_attributes(self, text):
-        parts = text.split()
+        parts = shlex.split(text)
         tag = parts[0].casefold()
         attributes = {}
         for attrpair in parts[1:]:
