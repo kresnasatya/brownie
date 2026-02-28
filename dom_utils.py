@@ -84,7 +84,10 @@ def style(node, rules, tab):
             node.style[property] = node.parent.style[property]
         else:
             node.style[property] = default_value
-    for selector, body in rules:
+    for media, selector, body in rules:
+        if media:
+            if (media == "dark") != tab.dark_mode:
+                continue
         if not selector.matches(node):
             continue
         for property, value in body.items():
@@ -116,7 +119,7 @@ def style(node, rules, tab):
 
 
 def cascade_priority(rule):
-    selector, body = rule
+    media, selector, body = rule
     return selector.priority
 
 
