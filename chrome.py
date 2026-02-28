@@ -1,13 +1,16 @@
 import ctypes
+
 import sdl2
 import skia
+
 from dom_utils import WIDTH, get_font, linespace
-from draw_rect import DrawRect
 from draw_line import DrawLine
 from draw_outline import DrawOutline
+from draw_rect import DrawRect
 from draw_text import DrawText
-from url import URL
 from task import Task
+from url import URL
+
 
 class Chrome:
     def __init__(self, browser):
@@ -22,7 +25,7 @@ class Chrome:
             l=self.padding,
             t=self.padding,
             r=self.padding + plus_width,
-            b=self.padding + self.font_height
+            b=self.padding + self.font_height,
         )
         self.urlbar_top = self.tabbar_bottom
         self.urlbar_bottom = self.urlbar_top + self.font_height + 2 * self.padding
@@ -54,25 +57,28 @@ class Chrome:
         )
 
     def paint(self):
+        color = "black"
+        if self.browser.dark_mode:
+            color = "white"
         cmds = []
-        cmds.append(DrawLine(0, self.bottom, WIDTH, self.bottom, "black", 1))
-        cmds.append(DrawOutline(self.newtab_rect, "black", 1))
+        cmds.append(DrawLine(0, self.bottom, WIDTH, self.bottom, color, 1))
+        cmds.append(DrawOutline(self.newtab_rect, color, 1))
         cmds.append(
             DrawText(
                 x1=self.newtab_rect.left() + self.padding,
                 y1=self.newtab_rect.top(),
                 text="+",
                 font=self.font,
-                color="black",
+                color=color,
             )
         )
         for i, tab in enumerate(self.browser.tabs):
             bounds = self.tab_rect(i)
             cmds.append(
-                DrawLine(bounds.left(), 0, bounds.left(), bounds.bottom(), "black", 1)
+                DrawLine(bounds.left(), 0, bounds.left(), bounds.bottom(), color, 1)
             )
             cmds.append(
-                DrawLine(bounds.right(), 0, bounds.right(), bounds.bottom(), "black", 1)
+                DrawLine(bounds.right(), 0, bounds.right(), bounds.bottom(), color, 1)
             )
             cmds.append(
                 DrawText(
@@ -80,30 +86,37 @@ class Chrome:
                     bounds.top() + self.padding,
                     "Tab {}".format(i),
                     self.font,
-                    "black",
+                    color,
                 )
             )
 
             if tab == self.browser.active_tab:
                 cmds.append(
-                    DrawLine(0, bounds.bottom(), bounds.left(), bounds.bottom(), "black", 1)
+                    DrawLine(
+                        0, bounds.bottom(), bounds.left(), bounds.bottom(), color, 1
+                    )
                 )
                 cmds.append(
                     DrawLine(
-                        bounds.right(), bounds.bottom(), WIDTH, bounds.bottom(), "black", 1
+                        bounds.right(),
+                        bounds.bottom(),
+                        WIDTH,
+                        bounds.bottom(),
+                        color,
+                        1,
                     )
                 )
-        cmds.append(DrawOutline(self.back_rect, "black", 1))
+        cmds.append(DrawOutline(self.back_rect, color, 1))
         cmds.append(
             DrawText(
                 self.back_rect.left() + self.padding,
                 self.back_rect.top(),
                 "<",
                 self.font,
-                "black",
+                color,
             )
         )
-        cmds.append(DrawOutline(self.address_rect, "black", 1))
+        cmds.append(DrawOutline(self.address_rect, color, 1))
         if self.focus == "address bar":
             cmds.append(
                 DrawText(
@@ -111,7 +124,7 @@ class Chrome:
                     self.address_rect.top(),
                     self.address_bar,
                     self.font,
-                    "black",
+                    color,
                 )
             )
             w = self.font.measureText(self.address_bar)
@@ -126,14 +139,16 @@ class Chrome:
                 )
             )
         else:
-            url = str(self.browser.active_tab_url) if self.browser.active_tab_url else ""
+            url = (
+                str(self.browser.active_tab_url) if self.browser.active_tab_url else ""
+            )
             cmds.append(
                 DrawText(
                     self.address_rect.left() + self.padding,
                     self.address_rect.top(),
                     url,
                     self.font,
-                    "black",
+                    color,
                 )
             )
         return cmds

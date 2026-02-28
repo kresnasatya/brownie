@@ -8,6 +8,7 @@ from commit_data import CommitData
 from css_parser import CSSParser
 from document_layout import DocumentLayout
 from dom_utils import (
+    INHERITED_PROPERTIES,
     SCROLL_STEP,
     VSTEP,
     absolute_bounds_for_obj,
@@ -44,6 +45,11 @@ class Tab:
         self.task_runner.start_thread()
         self.composited_updates = []
         self.zoom = 1
+        self.dark_mode = browser.dark_mode
+
+    def set_dark_mode(self, val):
+        self.dark_mode = val
+        self.set_needs_render()
 
     def click(self, x, y):
         self.render()
@@ -194,6 +200,9 @@ class Tab:
         self.browser.measure.time("render")
 
         if self.needs_style:
+            INHERITED_PROPERTIES["color"] = "black"
+            if self.dark_mode:
+                INHERITED_PROPERTIES["color"] = "white"
             style(self.nodes, sorted(self.rules, key=cascade_priority), self)
             self.needs_layout = True
             self.needs_style = False

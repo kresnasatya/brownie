@@ -107,6 +107,8 @@ class Browser:
         self.draw_list = []
         self.composited_updates = {}
 
+        self.dark_mode = False
+
     def clamp_scroll(self, scroll):
         height = self.active_tab_height
         maxscroll = height - (HEIGHT - self.chrome.bottom)
@@ -144,6 +146,11 @@ class Browser:
             task = Task(self.active_tab.click, e.x, tab_y)
             self.active_tab.task_runner.schedule_task(task)
         self.lock.release()
+
+    def toggle_dark_mode(self):
+        self.dark_mode = not self.dark_mode
+        task = Task(self.active_tab.set_dark_mode, self.dark_mode)
+        self.active_tab.task_runner.schedule_task(task)
 
     def handle_key(self, char):
         self.lock.acquire(blocking=True)
@@ -188,14 +195,20 @@ class Browser:
 
     def raster_chrome(self):
         canvas = self.chrome_surface.getCanvas()
-        canvas.clear(skia.ColorWHITE)
+        background_color = skia.ColorWHITE
+        if self.dark_mode:
+            background_color = skia.ColorBLACK
+        canvas.clear(background_color)
 
         for cmd in self.chrome.paint():
             cmd.execute(canvas)
 
     def draw(self):
+        color = skia.ColorWHITE
+        if self.dark_mode:
+            color = skia.ColorBLACK
         canvas = self.root_surface.getCanvas()
-        canvas.clear(skia.ColorWHITE)
+        canvas.clear(color)
 
         canvas.save()
         canvas.translate(0, self.chrome.bottom - self.active_tab_scroll)
@@ -230,6 +243,8 @@ class Browser:
         self.clear_data()
         self.needs_animation_frame = True
         self.animation_timer = None
+        task = Task(self.active_tab.set_dark_mode, self.dark_mode)
+        self.active_tab.task_runner.schedule_task(task)
 
     def handle_quit(self):
         self.measure.finish()
