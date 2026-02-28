@@ -40,8 +40,23 @@ def mainloop(browser):
                             browser.increment_zoom(False)
                         elif event.key.keysym.sym == sdl2.SDLK_0:
                             browser.reset_zoom()
-                    if event.key.keysym.sym == sdl2.SDLK_RETURN:
+                        elif event.key.keysym.sym == sdl2.SDLK_LEFT:
+                            browser.go_back()
+                        elif event.key.keysym.sym == sdl2.SDLK_l:
+                            browser.focus_addressbar()
+                        elif event.key.keysym.sym == sdl2.SDLK_t:
+                            browser.new_tab(URL("https://browser.engineering"))
+                        elif event.key.keysym.sym == sdl2.SDLK_TAB:
+                            browser.cycle_tabs()
+                        elif event.key.keysym.sym == sdl2.SDLK_q:
+                            browser.handle_quit()
+                            sdl2.SDL_Quit()
+                            sys.exit()
+                            break
+                    elif event.key.keysym.sym == sdl2.SDLK_RETURN:
                         browser.handle_enter()
+                    elif event.key.keysym.sym == sdl2.SDLK_TAB:
+                        browser.handle_tab()
                     elif event.key.keysym.sym == sdl2.SDLK_DOWN:
                         browser.handle_down()
                     elif (

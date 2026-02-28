@@ -163,10 +163,18 @@ class Browser:
             self.active_tab.task_runner.schedule_task(task)
         self.lock.release()
 
+    def handle_tab(self):
+        self.focus = "content"
+        task = Task(self.active_tab.advance_tab)
+        self.active_tab.task_runner.schedule_task(task)
+
     def handle_enter(self):
         self.lock.acquire(blocking=True)
         if self.chrome.enter():
             self.set_needs_raster()
+        elif self.focus == "content":
+            task = Task(self.active_tab.enter)
+            self.active_tab.task_runner.schedule_task(task)
         self.lock.release()
 
     def composite_raster_and_draw(self):
@@ -371,3 +379,16 @@ class Browser:
     def reset_zoom(self):
         task = Task(self.active_tab.rezet_zoom)
         self.active_tab.task_runner.schedule_task(task)
+
+    def focus_addressbar(self):
+        self.lock.acquire(blocking=True)
+        self.chrome.focus_addressbar()
+        self.set_needs_raster()
+        self.lock.release()
+
+    def cycle_tabs(self):
+        self.lock.acquire(blocking=True)
+        active_idx = self.tabs.index(self.active_tab)
+        new_active_idx = (active_idx + 1) % len(self.tabs)
+        self.set_active_tab(self.tabs[new_active_idx])
+        self.lock.release()

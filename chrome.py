@@ -1,4 +1,5 @@
 import ctypes
+import threading
 
 import sdl2
 import skia
@@ -45,6 +46,7 @@ class Chrome:
         )
         self.focus = None
         self.address_bar = ""
+        self.lock = threading.Lock()
 
     def tab_rect(self, i):
         tabs_start = self.newtab_rect.right() + self.padding
@@ -185,3 +187,7 @@ class Chrome:
 
     def blur(self):
         self.focus = None
+
+    def focus_addressbar(self):
+        self.focus = "address bar"
+        self.address_bar = ""

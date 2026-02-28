@@ -13,6 +13,8 @@ from dom_utils import (
     VSTEP,
     absolute_bounds_for_obj,
     cascade_priority,
+    get_tabindex,
+    is_focusable,
     paint_tree,
     style,
     tree_to_list,
@@ -69,24 +71,10 @@ class Tab:
         while elt:
             if isinstance(elt, Text):
                 pass
-            elif elt.tag == "a" and "href" in elt.attributes:
-                url = self.url.resolve(elt.attributes["href"])
-                return self.load(url)
-            elif elt.tag == "input":
-                elt.attributes["value"] = ""
-                if self.focus:
-                    self.focus.is_focused = False
+            elif is_focusable(elt):
                 self.focus = elt
-                elt.is_focused = True
-                self.set_needs_render()
+                self.activate_element(elt)
                 return
-            elif elt.tag == "button":
-                while elt.parent:
-                    # NOTE: You must put tag <form> with "action" attribute
-                    # Otherwise the elt.parent will be None when traverse back
-                    if elt.tag == "form" and "action" in elt.attributes:
-                        return self.submit_form(elt)
-                    elt = elt.parent
             elt = elt.parent
 
     def submit_form(self, elt):
@@ -113,6 +101,7 @@ class Tab:
         self.load(url, body)
 
     def load(self, url, payload=None):
+        self.focus = None
         self.loaded = False
         self.scroll = 0
         self.scroll_changed_in_tab = True
@@ -249,7 +238,9 @@ class Tab:
             self.load(back)
 
     def keypress(self, char):
-        if self.focus:
+        if self.focus and self.focus.tag == "input":
+            if "value" not in self.focus.attributes:
+                self.activate_element(self.focus)
             if self.js.dispatch_event("keydown", self.focus):
                 return
             self.focus.attributes["value"] += char
@@ -307,3 +298,43 @@ class Tab:
         self.display_list = None
         self.browser.commit(self, commit_data)
         self.scroll_changed_in_tab = False
+
+    def advance_tab(self):
+        focusable_nodes = [
+            node
+            for node in tree_to_list(self.nodes, [])
+            if isinstance(node, Element) and is_focusable(node)
+        ]
+        focusable_nodes.sort(key=get_tabindex)
+        print(focusable_nodes)
+
+        idx = 0
+        if self.focus in focusable_nodes:
+            idx = focusable_nodes.index(self.focus) + 1
+
+        if idx < len(focusable_nodes):
+            self.focus = focusable_nodes[idx]
+        else:
+            self.focus = None
+            self.browser.focus_addressbar()
+        self.set_needs_render()
+
+    def enter(self):
+        if not self.focus:
+            return
+        if self.js.dispatch_event("click", self.focus):
+            return
+        self.activate_element(self.focus)
+
+    def activate_element(self, elt):
+        if elt.tag == "input":
+            elt.attributes["value"] = ""
+            self.set_needs_render()
+        elif elt.tag == "a" and "href" in elt.attributes:
+            url = self.url.resolve(elt.attributes["href"])
+            self.load(url)
+        elif elt.tag == "button":
+            while elt:
+                if elt.tag == "from" and "action" in elt.attributes:
+                    self.submit_form(elt)
+                elt = elt.parent
