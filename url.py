@@ -3,6 +3,7 @@ import ssl
 
 COOKIE_JAR = {}
 
+
 class URL:
     def __init__(self, url):
         self.scheme, url = url.split("://", 1)
@@ -44,10 +45,11 @@ class URL:
             length = len(payload.encode("utf8"))
             request += "Content-Length: {}\r\n".format(length)
         request += "\r\n"
-        if payload: request += payload
+        if payload:
+            request += payload
         s.send(request.encode("utf8"))
-        response = s.makefile("r", encoding="utf8", newline="\r\n")
-        statusline = response.readline()
+        response = s.makefile("b")
+        statusline = response.readline().decode("utf8")
         version, status, explaination = statusline.split(" ", 2)
         # just curious what's the actual value I get here
         print("version: ", version)
@@ -55,18 +57,18 @@ class URL:
         print("explaination: ", explaination)
         response_headers = {}
         while True:
-            line = response.readline()
+            line = response.readline().decode("utf8")
             if line == "\r\n":
                 break
             header, value = line.split(":", 1)
             response_headers[header.casefold()] = value.strip()
-        if 'set-cookie' in response_headers:
-            cookie = response_headers['set-cookie']
+        if "set-cookie" in response_headers:
+            cookie = response_headers["set-cookie"]
             params = {}
             if ";" in cookie:
                 cookie, rest = cookie.split(";", 1)
                 for param in rest.split(";"):
-                    if '=' in param:
+                    if "=" in param:
                         param, value = param.split("=", 1)
                     else:
                         value = "true"

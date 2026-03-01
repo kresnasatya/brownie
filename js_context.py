@@ -5,6 +5,7 @@ import dukpy
 from css_parser import CSSParser
 from dom_utils import tree_to_list
 from html_parser import HTMLParser
+from task import Task
 
 RUNTIME_JS = open("runtime.js").read()
 
@@ -87,6 +88,7 @@ class JSContext:
 
         def run_load():
             headers, response = full_url.request(self.tab.url, body)
+            response = response.decode("utf8", "replace")
             task = Task(self.dispatch_xhr_onload, response.handle)
             self.tab.task_runner.schedule_task(task)
             return response

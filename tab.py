@@ -30,6 +30,8 @@ from url import URL
 
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 
+BROKEN_IMAGE = skia.Image.open("Broken_Image.png")
+
 
 class Tab:
     def __init__(self, browser, tab_height):
@@ -111,6 +113,7 @@ class Tab:
         self.scroll_changed_in_tab = True
         self.task_runner.clear_pending_tasks()  # NOTE: I don't know why this line doesn't mentioned in book. But, in GitHub repo it shows.
         headers, body = url.request(self.url, payload)
+        body = body.decode("utf8", "replace")
         self.history.append(url)
         self.url = url
 
@@ -140,6 +143,7 @@ class Tab:
                 continue
             try:
                 header, body = style_url.request(url)
+                body = body.decode("utf8", "response")
             except:
                 continue
             self.rules.extend(CSSParser(body).parse())
@@ -161,10 +165,32 @@ class Tab:
                 continue
             try:
                 header, body = script_url.request(url)
+                body = body.decode("utf8", "replace")
             except:
                 continue
             task = Task(self.js.run, script_url, body)
             self.task_runner.schedule_task(task)
+
+        images = [
+            node
+            for node in tree_to_list(self.nodes, [])
+            if isinstance(node, Element) and node.tag == "img"
+        ]
+        for img in images:
+            try:
+                src = img.attributes.get("src", "")
+                image_url = url.resolve(src)
+                assert self.allowed_request(image_url), (
+                    "Block load of " + str(image_url) + " due to CSP"
+                )
+                header, body = image_url.request(url)
+                img.encoded_data = body
+                data = skia.Data.MakeWithoutCopy(body)
+                img.image = skia.Image.MakeFromEncoded(data)
+                assert img.image, "Failed to recognize format for " + str(image_url)
+            except:
+                print("Image", img.attributes.get("src", ""), "crashed", e)
+                img.image = BROKEN_IMAGE
 
         self.set_needs_render()
         self.loaded = True
