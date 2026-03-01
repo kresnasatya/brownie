@@ -4,6 +4,7 @@ import urllib.parse
 
 import skia
 
+from accessibility_node import AccessibilityNode
 from commit_data import CommitData
 from css_parser import CSSParser
 from document_layout import DocumentLayout
@@ -49,6 +50,8 @@ class Tab:
         self.zoom = 1
         self.dark_mode = browser.dark_mode
         self.needs_focus_scroll = False
+        self.needs_accessibility = False
+        self.accessibility_tree = None
 
     def set_dark_mode(self, val):
         self.dark_mode = val
@@ -200,8 +203,15 @@ class Tab:
         if self.needs_layout:
             self.document = DocumentLayout(self.nodes)
             self.document.layout(self.zoom)
+            self.needs_accessibility = True
             self.needs_paint = True
             self.needs_layout = False
+
+        if self.needs_accessibility:
+            self.accessibility_tree = AccessibilityNode(self.nodes)
+            self.accessibility_tree.build()
+            print(self.accessibility_tree)
+            self.needs_accessibility = False
 
         if self.needs_paint:
             self.display_list = []
