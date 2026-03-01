@@ -260,3 +260,7 @@ def parse_outline(outline_str):
     if values[1] != "solid":
         return None
     return int(values[0][:-2]), values[2]
+
+
+def speak_text(text):
+    print("SPEAK:", text)

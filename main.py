@@ -46,6 +46,8 @@ def mainloop(browser):
                             browser.focus_addressbar()
                         elif event.key.keysym.sym == sdl2.SDLK_d:
                             browser.toggle_dark_mode()
+                        elif event.key.keysym.sym == sdl2.SDLK_a:
+                            browser.toggle_accessibility()
                         elif event.key.keysym.sym == sdl2.SDLK_t:
                             browser.new_tab(URL("https://browser.engineering"))
                         elif event.key.keysym.sym == sdl2.SDLK_TAB:

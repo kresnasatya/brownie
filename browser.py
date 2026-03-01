@@ -17,6 +17,7 @@ from dom_utils import (
     add_parent_pointers,
     local_to_absolute,
     print_tree,
+    speak_text,
     tree_to_list,
 )
 from draw_composited_layer import DrawCompositedLayer
@@ -108,6 +109,11 @@ class Browser:
         self.composited_updates = {}
 
         self.dark_mode = False
+        self.needs_accesibility = False
+        self.accessibility_is_on = False
+        self.has_spoken_document = False
+        self.tab_focus = None
+        self.last_tab_focus = None
 
     def clamp_scroll(self, scroll):
         height = self.active_tab_height
@@ -130,6 +136,7 @@ class Browser:
         self.display_list = []
         self.composited_layers = []
         self.composited_updates = {}
+        self.accessibility_tree = None
 
     def handle_click(self, e):
         self.lock.acquire(blocking=True)
@@ -191,6 +198,8 @@ class Browser:
         if self.needs_draw:
             self.paint_draw_list()
             self.draw()
+        if self.needs_accesibility:
+            self.update_accessibility()
         self.measure.stop("composite_raster_and_draw")
         self.needs_composite = False
         self.needs_raster = False
@@ -299,6 +308,10 @@ class Browser:
                 self.active_tab_display_list = data.display_list
             self.animation_timer = None
             self.composited_updates = data.composited_updates
+            self.accessibility_tree = data.accessibility_tree
+            if self.accessibility_tree:
+                self.set_needs_accessibility()
+            self.tab_focus = data.focus
             if self.composited_updates == None:
                 self.composited_updates = {}
                 self.set_needs_composite()
@@ -317,6 +330,18 @@ class Browser:
 
     def set_needs_draw(self):
         self.needs_draw = True
+
+    def set_needs_accessibility(self):
+        if not self.accessibility_is_on:
+            return
+        self.needs_accesibility = True
+        self.needs_draw = True
+
+    def toggle_accessibility(self):
+        self.lock.acquire(blocking=True)
+        self.accessibility_is_on = not self.accessibility_is_on
+        self.set_needs_accessibility()
+        self.lock.release()
 
     def composite(self):
         self.composited_layers = []
@@ -392,3 +417,40 @@ class Browser:
         new_active_idx = (active_idx + 1) % len(self.tabs)
         self.set_active_tab(self.tabs[new_active_idx])
         self.lock.release()
+
+    def update_accessibility(self):
+        if not self.accessibility_tree:
+            return
+
+        if not self.has_spoken_document:
+            self.speak_document()
+            self.has_spoken_document = True
+
+        if self.tab_focus and self.tab_focus != self.last_tab_focus:
+            nodes = [
+                node
+                for node in tree_to_list(self.accessibility_tree, [])
+                if node.node == self.tab_focus
+            ]
+            if nodes:
+                self.focus_a11y_node = nodes[0]
+                self.speak_node(self.focus_a11y_node, "element focused ")
+            self.last_tab_focus = self.tab_focus
+
+    def speak_document(self):
+        text = "Here are the document contents: "
+        tree_list = tree_to_list(self.accessibility_tree, [])
+        for accessibility_node in tree_list:
+            new_text = accessibility_node.text
+            if new_text:
+                text += "\n" + new_text
+
+        speak_text(text)
+
+    def speak_node(self, node, text):
+        text += node.text
+        if text and node.children and node.children[0].role == "StaticText":
+            text += " " + node.children[0].text
+
+        if text:
+            speak_text(text)

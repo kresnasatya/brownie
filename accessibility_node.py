@@ -7,6 +7,7 @@ class AccessibilityNode:
         self.node = node
         self.children = []
         self.role = "none"
+        self.text = ""
         if isinstance(node, Text):
             if is_focusable(node.parent):
                 self.role = "focusable text"
@@ -30,6 +31,35 @@ class AccessibilityNode:
         for child_node in self.node.children:
             self.build_internal(child_node)
 
+        if self.role == "StaticText":
+            self.text = repr(self.node.text)
+        elif self.role == "focusable text":
+            self.text = "Focusable text: " + self.node.text
+        elif self.role == "focusable":
+            self.text = "Focusable element"
+        elif self.role == "textbox":
+            value = ""
+            if "value" in self.node.attributes:
+                value = self.node.attributes["value"]
+            elif (
+                self.node.tag != "input"
+                and self.node.children
+                and isinstance(self.node.children[0], Text)
+            ):
+                value = self.node.children[0].text
+            self.text = "Input box: " + value
+        elif self.role == "button":
+            self.text = "Button"
+        elif self.role == "link":
+            self.text = "Link"
+        elif self.role == "alert":
+            self.text = "Alert"
+        elif self.role == "document":
+            self.text = "Document"
+
+        if self.node.is_focused:
+            self.text += " is focused"
+
     def build_internal(self, child_node):
         child = AccessibilityNode(child_node)
         if child.role != "none":
@@ -39,7 +69,7 @@ class AccessibilityNode:
             for grandchild_node in child_node.children:
                 self.build_internal(grandchild_node)
 
-    def __repr__(self, indent=0):
-        return (" " * indent + "role=" + self.role + "\n"
-            + "".join([child.__repr__(indent + 2)
-                       for child in self.children]))
+    def __repr__(self):
+        return "AccessibilityNode(node={}, role={}, text={}".format(
+            str(self.node), self.role, self.text
+        )
