@@ -3,7 +3,7 @@ import ctypes
 import sdl2
 import skia
 
-from dom_utils import dpx, get_font, paint_visual_effects
+from dom_utils import dpx, get_font, paint_outline, paint_visual_effects
 from draw_rrect import DrawRRect
 from element import Element
 from input_layout import InputLayout
@@ -228,4 +228,5 @@ class BlockLayout:
 
     def paint_effects(self, cmds):
         cmds = paint_visual_effects(self.node, cmds, self.self_rect())
+        paint_outline(self.node, cmds, self.self_rect(), self.zoom)
         return cmds

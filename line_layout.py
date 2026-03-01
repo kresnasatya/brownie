@@ -1,3 +1,8 @@
+import skia
+
+from dom_utils import paint_outline
+
+
 class LineLayout:
     def __init__(self, node, parent, previous):
         self.node = node
@@ -36,4 +41,12 @@ class LineLayout:
         return True
 
     def paint_effects(self, cmds):
+        outline_rect = skia.Rect.MakeEmpty()
+        outline_node = None
+        for child in self.children:
+            if child.node.parent.is_focused:
+                outline_rect.join(child.self_rect())
+                outline_node = child.node.parent
+        if outline_node:
+            paint_outline(outline_node, cmds, outline_rect, self.zoom)
         return cmds

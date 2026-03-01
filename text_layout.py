@@ -1,4 +1,6 @@
-from dom_utils import dpx, get_font, linespace
+import skia
+
+from dom_utils import dpx, get_font, linespace, paint_outline, paint_visual_effects
 from draw_text import DrawText
 
 
@@ -9,6 +11,10 @@ class TextLayout:
         self.children = []
         self.parent = parent
         self.previous = previous
+        self.x = None
+        self.y = None
+        self.width = None
+        self.height = None
 
     def layout(self):
         self.zoom = self.parent.zoom
@@ -34,5 +40,12 @@ class TextLayout:
     def should_paint(self):
         return True
 
+    def self_rect(self):
+        return skia.Rect.MakeLTRB(
+            self.x, self.y, self.x + self.width, self.y + self.height
+        )
+
     def paint_effects(self, cmds):
+        cmds = paint_visual_effects(self.node, cmds, self.self_rect())
+        paint_outline(self.node, cmds, self.self_rect(), self.zoom)
         return cmds

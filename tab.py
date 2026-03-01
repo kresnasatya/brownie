@@ -48,6 +48,7 @@ class Tab:
         self.composited_updates = []
         self.zoom = 1
         self.dark_mode = browser.dark_mode
+        self.needs_focus_scroll = False
 
     def set_dark_mode(self, val):
         self.dark_mode = val
@@ -55,7 +56,7 @@ class Tab:
 
     def click(self, x, y):
         self.render()
-        self.focus = None
+        self.focus_element(None)
         y += self.scroll
         loc_rect = skia.Rect.MakeXYWH(x, y, 1, 1)
         objs = [
@@ -72,7 +73,7 @@ class Tab:
             if isinstance(elt, Text):
                 pass
             elif is_focusable(elt):
-                self.focus = elt
+                self.focus_element(elt)
                 self.activate_element(elt)
                 return
             elt = elt.parent
@@ -281,6 +282,14 @@ class Tab:
 
         self.render()
 
+        if self.needs_focus_scroll and self.focus:
+            self.scroll_to(self.focus)
+        self.needs_focus_scroll = False
+
+        scroll = None
+        if self.scroll_changed_in_tab:
+            scroll = self.scroll
+
         composited_updates = None
         if not needs_composite:
             composited_updates = {}
@@ -288,9 +297,6 @@ class Tab:
                 composited_updates[node] = node.blend_op
         self.composited_updates = []
 
-        scroll = None
-        if self.scroll_changed_in_tab:
-            scroll = self.scroll
         document_height = math.ceil(self.document.height + 2 * VSTEP)
         commit_data = CommitData(
             self.url, scroll, document_height, self.display_list, composited_updates
@@ -313,9 +319,9 @@ class Tab:
             idx = focusable_nodes.index(self.focus) + 1
 
         if idx < len(focusable_nodes):
-            self.focus = focusable_nodes[idx]
+            self.focus_element(focusable_nodes[idx])
         else:
-            self.focus = None
+            self.focus_element(None)
             self.browser.focus_addressbar()
         self.set_needs_render()
 
@@ -338,3 +344,28 @@ class Tab:
                 if elt.tag == "from" and "action" in elt.attributes:
                     self.submit_form(elt)
                 elt = elt.parent
+
+    def focus_element(self, node):
+        if node and node != self.focus:
+            self.needs_focus_scroll = True
+        if self.focus:
+            self.focus.is_focused = False
+        self.focus = node
+        if node:
+            node.is_focused = True
+
+    def scroll_to(self, elt):
+        objs = [
+            obj for obj in tree_to_list(self.document, []) if obj.node == self.focus
+        ]
+        if not objs:
+            return
+        obj = objs[0]
+
+        if self.scroll < obj.y < self.scroll + self.tab_height:
+            return
+
+        document_height = math.ceil(self.document.height + 2 * VSTEP)
+        new_scroll = obj.y - SCROLL_STEP
+        self.scroll = self.clamp_scroll(new_scroll)
+        self.scroll_changed_in_tab = True

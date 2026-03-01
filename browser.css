@@ -1,9 +1,15 @@
 pre {
     background-color: gray;
 }
+
 a {
     color: blue;
 }
+
+a:focus {
+    outline: 2px solid red;
+}
+
 i {
     font-style: italic;
 }
@@ -16,12 +22,18 @@ small {
 big {
     font-size: 110%;
 }
+
 input {
     font-size: 16px;
     font-weight: normal;
     font-style: normal;
     background-color: lightblue;
 }
+
+input:focus {
+    outline: 2px solid black;
+}
+
 button {
     font-size: 16px;
     font-weight: normal;
@@ -29,16 +41,36 @@ button {
     background-color: orange;
 }
 
+button:focus {
+    outline: 2px solid black;
+}
+
 @media (prefers-color-scheme: dark) {
     a {
         color: lightblue;
+    }
+
+    a:focus {
+        outline: 2px solid white;
     }
 
     input {
         background-color: #2222ff;
     }
 
+    input:focus {
+        outline: 2px solid white;
+    }
+
+    div:focus {
+        outline: 2px solid white;
+    }
+
     button {
         background-color: #992500;
+    }
+
+    button:focus {
+        outline: 2px solid white;
     }
 }

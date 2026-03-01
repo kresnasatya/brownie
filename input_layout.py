@@ -3,7 +3,7 @@ import ctypes
 import sdl2
 import skia
 
-from dom_utils import dpx, get_font, linespace, paint_visual_effects
+from dom_utils import dpx, get_font, linespace, paint_outline, paint_visual_effects
 from draw_line import DrawLine
 from draw_rrect import DrawRRect
 from draw_text import DrawText
@@ -75,4 +75,6 @@ class InputLayout:
         )
 
     def paint_effects(self, cmds):
-        return paint_visual_effects(self.node, cmds, self.self_rect())
+        cmds = paint_visual_effects(self.node, cmds, self.self_rect())
+        paint_outline(self.node, cmds, self.self_rect(), self.zoom)
+        return cmds

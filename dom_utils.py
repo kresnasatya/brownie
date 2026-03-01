@@ -16,6 +16,7 @@ import skia
 
 from blend import Blend
 from css_parser import CSSParser
+from draw_outline import DrawOutline
 from draw_rrect import DrawRRect
 from element import Element
 from numeric_animation import NumericAnimation
@@ -240,3 +241,22 @@ def is_focusable(node):
 def get_tabindex(node):
     tabindex = int(node.attributes.get("tabindex", "9999999"))
     return 9_999_999 if tabindex == 0 else tabindex
+
+
+def paint_outline(node, cmds, rect, zoom):
+    outline = parse_outline(node.style.get("outline"))
+    if not outline:
+        return
+    thickness, color = outline
+    cmds.append(DrawOutline(rect, color, dpx(thickness, zoom)))
+
+
+def parse_outline(outline_str):
+    if not outline_str:
+        return None
+    values = outline_str.split(" ")
+    if len(values) != 3:
+        return None
+    if values[1] != "solid":
+        return None
+    return int(values[0][:-2]), values[2]
