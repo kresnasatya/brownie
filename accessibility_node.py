@@ -1,4 +1,6 @@
-from dom_utils import is_focusable
+import skia
+
+from dom_utils import absolute_bounds_for_obj, is_focusable
 from text import Text
 
 
@@ -8,6 +10,7 @@ class AccessibilityNode:
         self.children = []
         self.role = "none"
         self.text = ""
+        self.bounds = self.compute_bounds()
         if isinstance(node, Text):
             if is_focusable(node.parent):
                 self.role = "focusable text"
@@ -69,7 +72,42 @@ class AccessibilityNode:
             for grandchild_node in child_node.children:
                 self.build_internal(grandchild_node)
 
+    def compute_bounds(self):
+        if self.node.layout_object:
+            return [absolute_bounds_for_obj(self.node.layout_object)]
+        if isinstance(self.node, Text):
+            return []
+        inline = self.node.parent
+        bounds = []
+        while not inline.layout_object:
+            inline = inline.parent
+        for line in inline.layout_object.children:
+            line_bounds = skia.Rect.MakeEmpty()
+            for child in line.children:
+                if child.node.parent == self.node:
+                    line_bounds.join(
+                        skia.Rect.MakeXYWH(child.x, child.y, child.width, child.height)
+                    )
+            bounds.append(line_bounds)
+        return bounds
+
+    def contains_point(self, x, y):
+        for bound in self.bounds:
+            if bound.contains(x, y):
+                return True
+        return False
+
+    def hit_test(self, x, y):
+        node = None
+        if self.contains_point(x, y):
+            node = self
+        for child in self.children:
+            res = child.hit_test(x, y)
+            if res:
+                node = res
+        return node
+
     def __repr__(self):
-        return "AccessibilityNode(node={}, role={}, text={}".format(
-            str(self.node), self.role, self.text
+        return "AccessibilityNode(node={}, role={}, text={}, bounds={}".format(
+            str(self.node), self.role, self.text, self.bounds
         )

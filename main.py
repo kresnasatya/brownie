@@ -32,6 +32,8 @@ def mainloop(browser):
                     sys.exit()
                 elif event.type == sdl2.SDL_MOUSEBUTTONUP:
                     browser.handle_click(event.button)
+                elif event.type == sdl2.SDL_MOUSEMOTION:
+                    browser.handle_hover(event.motion)
                 elif event.type == sdl2.SDL_KEYDOWN:
                     if ctrl_down:
                         if event.key.keysym.sym == sdl2.SDLK_EQUALS:

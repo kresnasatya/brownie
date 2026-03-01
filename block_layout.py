@@ -64,6 +64,7 @@ class BlockLayout:
         self.y = None
         self.width = None
         self.height = None
+        node.layout_object = self
 
     def __repr__(self):
         return f"BlockLayout({self.node}, mode={self.layout_mode()})"

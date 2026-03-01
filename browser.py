@@ -21,6 +21,7 @@ from dom_utils import (
     tree_to_list,
 )
 from draw_composited_layer import DrawCompositedLayer
+from draw_outline import DrawOutline
 from measure_time import MeasureTime
 from paint_command import PaintCommand
 from tab import Tab
@@ -116,6 +117,9 @@ class Browser:
         self.last_tab_focus = None
         self.active_alerts = []
         self.spoken_alerts = []
+        self.pending_hover = None
+        self.hovered_a11y_node = None
+        self.needs_speak_hovered_node = False
 
     def clamp_scroll(self, scroll):
         height = self.active_tab_height
@@ -131,6 +135,12 @@ class Browser:
         self.set_needs_raster()
         self.needs_animation_frame = True
         self.lock.release()
+
+    def handle_hover(self, event):
+        if not self.accessibility_is_on or not self.accessibility_tree:
+            return
+        self.pending_hover = (event.x, event.y - self.chrome.bottom)
+        self.set_needs_accessibility()
 
     def clear_data(self):
         self.active_tab_scroll = 0
@@ -399,6 +409,26 @@ class Browser:
             if not parent:
                 self.draw_list.append(current_effect)
 
+        if self.pending_hover:
+            (x, y) = self.pending_hover
+            y += self.active_tab_scroll
+            a11y_node = self.accessibility_tree.hit_test(x, y)
+
+            if a11y_node:
+                if (
+                    not self.hovered_a11y_node
+                    or a11y_node.node != self.hovered_a11y_node.node
+                ):
+                    self.needs_speak_hovered_node = True
+                self.hovered_a11y_node = a11y_node
+        self.pending_hover = None
+
+        if self.hovered_a11y_node:
+            for bound in self.hovered_a11y_node.bounds:
+                self.draw_list.append(
+                    DrawOutline(bound, "white" if self.dark_mode else "black", 2)
+                )
+
     def increment_zoom(self, increment):
         task = Task(self.active_tab.zoom_by, increment)
         self.active_tab.task_runner.schedule_task(task)
@@ -460,6 +490,10 @@ class Browser:
                 self.focus_a11y_node = nodes[0]
                 self.speak_node(self.focus_a11y_node, "element focused ")
             self.last_tab_focus = self.tab_focus
+
+        if self.needs_speak_hovered_node:
+            self.speak_node(self.hovered_a11y_node, "Hit test ")
+        self.needs_speak_hovered_node = False
 
     def speak_document(self):
         text = "Here are the document contents: "

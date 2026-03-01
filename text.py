@@ -6,6 +6,7 @@ class Text:
         self.is_focused = False
         self.style = {}
         self.animations = {}
+        self.layout_object = None
 
     def __repr__(self) -> str:
         return repr(self.text)
