@@ -114,6 +114,8 @@ class Browser:
         self.has_spoken_document = False
         self.tab_focus = None
         self.last_tab_focus = None
+        self.active_alerts = []
+        self.spoken_alerts = []
 
     def clamp_scroll(self, scroll):
         height = self.active_tab_height
@@ -425,6 +427,28 @@ class Browser:
         if not self.has_spoken_document:
             self.speak_document()
             self.has_spoken_document = True
+
+        self.active_alerts = [
+            node
+            for node in tree_to_list(self.accessibility_tree, [])
+            if node.role == "alert"
+        ]
+
+        for alert in self.active_alerts:
+            if alert not in self.spoken_alerts:
+                self.speak_node(alert, "New alert")
+                self.spoken_alerts.append(alert)
+
+        new_spoken_alerts = []
+        for old_node in self.spoken_alerts:
+            new_nodes = [
+                node
+                for node in tree_to_list(self.accessibility_tree, [])
+                if node.node == old_node.node and node.role == "alert"
+            ]
+            if new_nodes:
+                new_spoken_alerts.append(new_nodes[0])
+        self.spoken_alerts = new_spoken_alerts
 
         if self.tab_focus and self.tab_focus != self.last_tab_focus:
             nodes = [

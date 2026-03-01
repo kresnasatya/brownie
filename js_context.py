@@ -1,5 +1,7 @@
 import threading
+
 import dukpy
+
 from css_parser import CSSParser
 from dom_utils import tree_to_list
 from html_parser import HTMLParser
@@ -14,6 +16,7 @@ SETTIMEOUT_JS = "__runSetTimeout(dukpy.handle)"
 
 XHR_ONLOAD_JS = "__runXHROnload(dukpy.out, dukpy.handle)"
 
+
 class JSContext:
     def __init__(self, tab):
         self.tab = tab
@@ -26,6 +29,7 @@ class JSContext:
         self.interp.export_function("setTimeout", self.setTimeout)
         self.interp.export_function("requestAnimationFrame", self.requestAnimationFrame)
         self.interp.export_function("style_set", self.style_set)
+        self.interp.export_function("setAttribute", self.setAttribute)
         self.interp.evaljs(RUNTIME_JS)
 
         self.node_to_handle = {}
@@ -41,9 +45,9 @@ class JSContext:
 
     def querySelectorAll(self, selector_text):
         selector = CSSParser(selector_text).selector()
-        nodes = [node for node
-                in tree_to_list(self.tab.nodes, [])
-                if selector.matches(node)]
+        nodes = [
+            node for node in tree_to_list(self.tab.nodes, []) if selector.matches(node)
+        ]
         return [self.get_handle(node) for node in nodes]
 
     def get_handle(self, elt):
@@ -62,9 +66,7 @@ class JSContext:
 
     def dispatch_event(self, type, elt):
         handle = self.node_to_handle.get(elt, -1)
-        do_default = self.interp.evaljs(
-            EVENT_DISPATCH_JS, type=type, handle=handle
-        )
+        do_default = self.interp.evaljs(EVENT_DISPATCH_JS, type=type, handle=handle)
         return not do_default
 
     def innerHTML_set(self, handle, s):
@@ -95,17 +97,20 @@ class JSContext:
             threading.Thread(target=run_load).start()
 
     def dispatch_settimeout(self, handle):
-        if self.discarded: return
+        if self.discarded:
+            return
         self.interp.evaljs(SETTIMEOUT_JS, handle=handle)
 
     def setTimeout(self, handle, time):
         def run_callback():
             task = Task(self.dispatch_settimeout, handle)
             self.tab.task_runner.schedule_task(task)
+
         threading.Timer(time / 1000.0, run_callback).start()
 
     def dispatch_xhr_onload(self, out, handle):
-        if self.discarded: return
+        if self.discarded:
+            return
         do_default = self.interp.evaljs(XHR_ONLOAD_JS, out=out, handle=handle)
 
     def requestAnimationFrame(self):
@@ -114,4 +119,9 @@ class JSContext:
     def style_set(self, handle, s):
         elt = self.handle_to_node[handle]
         elt.attributes["style"] = s
+        self.tab.set_needs_render()
+
+    def setAttribute(self, handle, attr, value):
+        elt = self.handle_to_node[handle]
+        elt.attributes[attr] = value
         self.tab.set_needs_render()
