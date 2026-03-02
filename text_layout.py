@@ -32,6 +32,8 @@ class TextLayout:
         else:
             self.x = self.parent.x
         self.height = linespace(self.font)
+        self.ascent = self.font.getMetrics().fAscent * 1.25
+        self.descent = self.font.getMetrics().fDescent * 1.25
 
     def paint(self):
         color = self.node.style["color"]

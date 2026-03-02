@@ -3,46 +3,28 @@ import ctypes
 import sdl2
 import skia
 
-from dom_utils import dpx, get_font, linespace, paint_outline, paint_visual_effects
+from dom_utils import dpx, linespace, paint_outline, paint_visual_effects
 from draw_line import DrawLine
 from draw_rrect import DrawRRect
 from draw_text import DrawText
+from embed_layout import EmbedLayout
 from text import Text
 
 INPUT_WIDTH_PX = 200
 
 
-class InputLayout:
+class InputLayout(EmbedLayout):
     def __init__(self, node, parent, previous) -> None:
-        self.node = node
-        self.children = []
-        self.parent = parent
-        self.previous = previous
-        self.x = None
-        self.y = None
-        self.width = None
-        self.height = None
-        self.font = None
+        super().__init__(node, parent, previous)
 
     def layout(self):
-        self.zoom = self.parent.zoom
-        weight = self.node.style["font-weight"]
-        style = self.node.style["font-style"]
-        if style == "normal":
-            style = "roman"
-        px_size = float(self.node.style["font-size"][:2])
-        size = dpx(px_size * 0.75, self.zoom)
-        self.font = get_font(size, weight, style)
-        self.width = INPUT_WIDTH_PX
-        if self.previous:
-            space = self.previous.font.measureText(" ")
-            self.x = self.previous.x + space + self.previous.width
-        else:
-            self.x = self.parent.x
+        super().layout()
+
+        self.width = dpx(INPUT_WIDTH_PX, self.zoom)
         self.height = linespace(self.font)
 
-    def should_paint(self):
-        return True
+        self.ascent = -self.height
+        self.descent = 0
 
     def paint(self):
         cmds = []

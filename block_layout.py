@@ -3,9 +3,10 @@ import ctypes
 import sdl2
 import skia
 
-from dom_utils import dpx, get_font, paint_outline, paint_visual_effects
+from dom_utils import VSTEP, dpx, font, get_font, paint_outline, paint_visual_effects
 from draw_rrect import DrawRRect
 from element import Element
+from image_layout import ImageLayout
 from input_layout import InputLayout
 from line_layout import LineLayout
 from text import Text
@@ -57,6 +58,7 @@ BLOCK_ELEMENTS = [
 class BlockLayout:
     def __init__(self, node, parent, previous):
         self.node = node
+        node.layout_object = self
         self.parent = parent
         self.previous = previous
         self.children = []
@@ -64,7 +66,6 @@ class BlockLayout:
         self.y = None
         self.width = None
         self.height = None
-        node.layout_object = self
 
     def __repr__(self):
         return f"BlockLayout({self.node}, mode={self.layout_mode()})"
@@ -110,20 +111,9 @@ class BlockLayout:
         return cmds
 
     def word(self, node, word):
-        weight = node.style["font-weight"]
-        style = node.style["font-style"]
-        if style == "normal":
-            style = "roman"
-        px_size = float(node.style["font-size"][:2])
-        size = dpx(px_size * 0.75, self.zoom)
-        font = get_font(size, weight, style)
-        w = font.measureText(word)
-        if self.cursor_x + w > self.width:
-            self.new_line()
-        line = self.children[-1]
-        previous_word = line.children[-1] if line.children else None
-        text = TextLayout(node, word, line, previous_word)
-        line.children.append(text)
+        node_font = font(node.style, self.zoom)
+        w = node_font.measureText(word)
+        self.add_inline_child(node, w, TextLayout, word)
 
     def new_line(self):
         self.cursor_x = 0
@@ -177,28 +167,19 @@ class BlockLayout:
                 self.new_line()
             elif node.tag == "input" or node.tag == "button":
                 self.input(node)
+            elif node.tag == "img":
+                self.image(node)
             else:
                 for child in node.children:
                     self.recurse(child)
 
     def input(self, node):
         w = dpx(INPUT_WIDTH_PX, self.zoom)
-        if self.cursor_x + w > self.width:
-            self.new_line()
-        line = self.children[-1]
-        previous_word = line.children[-1] if line.children else None
-        input = InputLayout(node, line, previous_word)
-        line.children.append(input)
+        self.add_inline_child(node, w, InputLayout)
 
-        weight = node.style["font-weight"]
-        style = node.style["font-style"]
-        if style == "normal":
-            style = "roman"
-        px_size = float(node.style["font-size"][:-2])
-        size = dpx(px_size * 0.75, self.zoom)
-        font = get_font(size, weight, style)
-
-        self.cursor_x += w + font.measureText(" ")
+    def image(self, node):
+        w = dpx(node.image.width(), self.zoom)
+        self.add_inline_child(node, w, ImageLayout)
 
     def layout_intermediate(self):
         previous = None
@@ -210,24 +191,36 @@ class BlockLayout:
     def layout_mode(self):
         if isinstance(self.node, Text):
             return "inline"
-        elif any(
-            [
-                isinstance(child, Element) and child.tag in BLOCK_ELEMENTS
-                for child in self.node.children
-            ]
-        ):
-            return "block"
-        elif self.node.children or self.node.tag == "input":
+        elif self.node.children:
+            for child in self.node.children:
+                if isinstance(child, Text):
+                    continue
+                if child.tag in BLOCK_ELEMENTS:
+                    return "block"
+            return "inline"
+        elif self.node.tag in ["input", "img"]:
             return "inline"
         else:
             return "block"
 
     def should_paint(self):
         return isinstance(self.node, Text) or (
-            self.node.tag != "input" and self.node.tag != "button"
+            self.node.tag not in ["input", "button", "img"]
         )
 
     def paint_effects(self, cmds):
         cmds = paint_visual_effects(self.node, cmds, self.self_rect())
         paint_outline(self.node, cmds, self.self_rect(), self.zoom)
         return cmds
+
+    def add_inline_child(self, node, w, child_class, word=None):
+        if self.cursor_x + w > self.x + self.width:
+            self.new_line()
+        line = self.children[-1]
+        previous_word = line.children[-1] if line.children else None
+        if word:
+            child = child_class(node, word, line, previous_word)
+        else:
+            child = child_class(node, line, previous_word)
+        line.children.append(child)
+        self.cursor_x += w + font(node.style, self.zoom).measureText(" ")
