@@ -179,6 +179,8 @@ class BlockLayout:
 
     def image(self, node):
         w = dpx(node.image.width(), self.zoom)
+        if "width" in node.attributes:
+            w = dpx(int(node.attributes["width"]), self.zoom)
         self.add_inline_child(node, w, ImageLayout)
 
     def layout_intermediate(self):

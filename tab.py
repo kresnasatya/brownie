@@ -189,7 +189,7 @@ class Tab:
                 img.image = skia.Image.MakeFromEncoded(data)
                 assert img.image, "Failed to recognize format for " + str(image_url)
             except:
-                print("Image", img.attributes.get("src", ""), "crashed", e)
+                print("Image", img.attributes.get("src", ""), "crashed")
                 img.image = BROKEN_IMAGE
 
         self.set_needs_render()
