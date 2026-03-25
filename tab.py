@@ -54,6 +54,8 @@ class Tab:
         self.needs_focus_scroll = False
         self.needs_accessibility = False
         self.accessibility_tree = None
+        self.root_frame = None
+        self.window_id_to_frame = {}
 
     def set_dark_mode(self, val):
         self.dark_mode = val
@@ -111,11 +113,13 @@ class Tab:
         self.loaded = False
         self.scroll = 0
         self.scroll_changed_in_tab = True
+        self.history.append(url)
+        self.url = url
+        self.root_frame = Frame(self, None, None)
+        self.root_frame.load(url, payload)
         self.task_runner.clear_pending_tasks()  # NOTE: I don't know why this line doesn't mentioned in book. But, in GitHub repo it shows.
         headers, body = url.request(self.url, payload)
         body = body.decode("utf8", "replace")
-        self.history.append(url)
-        self.url = url
 
         self.allowed_origins = None
         if "content-security-policy" in headers:
@@ -412,3 +416,38 @@ class Tab:
         new_scroll = obj.y - SCROLL_STEP
         self.scroll = self.clamp_scroll(new_scroll)
         self.scroll_changed_in_tab = True
+
+
+class Frame:
+    def __init__(self, tab, parent_frame, frame_element) -> None:
+        self.tab = tab
+        self.parent_frame = parent_frame
+        self.frame_element = frame_element
+
+        self.nodes = None
+        self.loaded = False
+        self.window_id = len(self.tab.window_id_to_frame)
+        self.tab.window_id_to_frame[self.window_id] = self
+
+    def load(self, url, payload=None):
+        self.loaded = False
+        iframes = [
+            node
+            for node in tree_to_list(self.nodes, [])
+            if isinstance(node, Element)
+            and node.tag == "iframe"
+            and "src" in node.attributes
+        ]
+        for iframe in iframes:
+            document_url = url.resolve(iframe.attributes["src"])
+            if not self.allowed_request(document_url):
+                print("Blocked iframe", document_url, "due to CSP")
+                iframe.frame = None
+                continue
+            iframe.frame = Frame(self.tab, self, iframe)
+            task = Task(iframe.frame.load, document_url)
+            self.tab.task_runner.schedule_task(task)
+        self.loaded = True
+
+    def allowed_request(self, url):
+        return self.allowed_origins == None or url.origin() in self.allowed_origins
