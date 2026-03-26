@@ -169,9 +169,18 @@ class BlockLayout:
                 self.input(node)
             elif node.tag == "img":
                 self.image(node)
+            elif node.tag == "iframe" and "src" in node.attributes:
+                self.iframe(node)
             else:
                 for child in node.children:
                     self.recurse(child)
+
+    def iframe(self, node):
+        if "width" in self.node.attributes:
+            w = dpx(int(self.node.attributes["width"]), self.zoom)
+        else:
+            w = IFRAME_WIDTH_PX + dpx(2, self.zoom)
+        self.add_inline_child(node, w, IframeLayout, self.frame)
 
     def input(self, node):
         w = dpx(INPUT_WIDTH_PX, self.zoom)
@@ -200,14 +209,14 @@ class BlockLayout:
                 if child.tag in BLOCK_ELEMENTS:
                     return "block"
             return "inline"
-        elif self.node.tag in ["input", "img"]:
+        elif self.node.tag in ["input", "img", "iframe"]:
             return "inline"
         else:
             return "block"
 
     def should_paint(self):
         return isinstance(self.node, Text) or (
-            self.node.tag not in ["input", "button", "img"]
+            self.node.tag not in ["input", "button", "img", "iframe"]
         )
 
     def paint_effects(self, cmds):

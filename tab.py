@@ -12,6 +12,7 @@ from dom_utils import (
     INHERITED_PROPERTIES,
     SCROLL_STEP,
     VSTEP,
+    WIDTH,
     absolute_bounds_for_obj,
     cascade_priority,
     get_tabindex,
@@ -56,6 +57,8 @@ class Tab:
         self.accessibility_tree = None
         self.root_frame = None
         self.window_id_to_frame = {}
+        self.root_frame.frame_width = WIDTH
+        self.root_frame.frame_height = self.tab_height
 
     def set_dark_mode(self, val):
         self.dark_mode = val
@@ -219,6 +222,10 @@ class Tab:
         self.needs_paint = True
         self.browser.set_needs_animation_frame(self)
 
+    def set_needs_render_all_frames(self):
+        for id, frame in self.window_id_to_frame.items():
+            frame.set_needs_render()
+
     def render(self):
         self.browser.measure.time("render")
 
@@ -237,6 +244,10 @@ class Tab:
             self.needs_paint = True
             self.needs_layout = False
 
+        for id, frame in self.window_id_to_frame.items():
+            if frame.loaded:
+                frame.render()
+
         if self.needs_accessibility:
             self.accessibility_tree = AccessibilityNode(self.nodes)
             self.accessibility_tree.build()
@@ -245,7 +256,7 @@ class Tab:
 
         if self.needs_paint:
             self.display_list = []
-            paint_tree(self.document, self.display_list)
+            paint_tree(self.root_frame.document, self.display_list)
             self.needs_paint = False
 
         clamped_scroll = self.clamp_scroll(self.scroll)
@@ -306,6 +317,12 @@ class Tab:
     def run_animation_frame(self, scroll):
         if not self.scroll_changed_in_tab:
             self.scroll = scroll
+
+        for window_id, frame in self.window_id_to_frame.items():
+            if not frame.loaded:
+                continue
+            frame.js.dispatch_RAF(frame.window_id)
+
         self.browser.measure.time("script-runRAFHandlers")
         self.js.interp.evaljs("__runRAFHandlers()")
         self.browser.measure.stop("script-runRAFHandlers")
@@ -424,10 +441,42 @@ class Frame:
         self.parent_frame = parent_frame
         self.frame_element = frame_element
 
+        self.needs_style = False
+        self.needs_layout = False
+
         self.nodes = None
         self.loaded = False
         self.window_id = len(self.tab.window_id_to_frame)
         self.tab.window_id_to_frame[self.window_id] = self
+
+        self.frame_width = 0
+        self.frame_height = 0
+
+    def set_needs_render(self):
+        self.needs_style = True
+        self.tab.needs_accessibility = True
+        self.tab.set_needs_paint()
+
+    def set_needs_layout(self):
+        self.needs_layout = True
+        self.tab.needs_accesibility = True
+        self.tab.set_needs_paint()
+
+    def render(self):
+        if self.needs_style:
+            INHERITED_PROPERTIES["color"] = "black"
+            if self.tab.dark_mode:
+                INHERITED_PROPERTIES["color"] = "white"
+            style(self.nodes, sorted(self.rules, key=cascade_priority), self)
+            self.needs_layout = True
+            self.needs_style = False
+
+        if self.needs_layout:
+            self.document = DocumentLayout(self.nodes)
+            self.document.layout(self.tab.zoom)
+            self.tab.needs_accessibility = True
+            self.needs_paint = True
+            self.needs_layout = False
 
     def load(self, url, payload=None):
         self.loaded = False

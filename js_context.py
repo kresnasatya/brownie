@@ -70,6 +70,9 @@ class JSContext:
         do_default = self.interp.evaljs(EVENT_DISPATCH_JS, type=type, handle=handle)
         return not do_default
 
+    def dispatch_RAF(self):
+        self.interp.evaljs("window.__runRAFHandlers()")
+
     def innerHTML_set(self, handle, s):
         doc = HTMLParser("<html><body>" + s + "</body></html>").parse()
         new_nodes = doc.children[0].children

@@ -23,6 +23,10 @@ big {
     font-size: 110%;
 }
 
+iframe {
+    outline: 1px solid black;
+}
+
 input {
     font-size: 16px;
     font-weight: normal;

@@ -1,6 +1,7 @@
 import skia
 
 from dom_utils import absolute_bounds_for_obj, is_focusable
+from element import Element
 from text import Text
 
 
@@ -8,7 +9,6 @@ class AccessibilityNode:
     def __init__(self, node) -> None:
         self.node = node
         self.children = []
-        self.role = "none"
         self.text = ""
         self.bounds = self.compute_bounds()
         if isinstance(node, Text):
@@ -27,8 +27,12 @@ class AccessibilityNode:
                 self.role = "button"
             elif node.tag == "html":
                 self.role = "document"
+            elif node.tag == "iframe":
+                self.role = "iframe"
             elif is_focusable(node):
                 self.role = "focusable"
+            else:
+                self.role = "none"
 
     def build(self):
         for child_node in self.node.children:
@@ -64,7 +68,15 @@ class AccessibilityNode:
             self.text += " is focused"
 
     def build_internal(self, child_node):
-        child = AccessibilityNode(child_node)
+        if (
+            isinstance(child_node, Element)
+            and child_node.tag == "iframe"
+            and child_node.frame
+            and child_node.frame.loaded
+        ):
+            child = AccessibilityNode(child_node.frame.nodes)
+        else:
+            child = AccessibilityNode(child_node, self)
         if child.role != "none":
             self.children.append(child)
             child.build()
