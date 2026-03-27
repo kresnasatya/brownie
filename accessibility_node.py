@@ -1,14 +1,15 @@
 import skia
 
-from dom_utils import absolute_bounds_for_obj, is_focusable
+from dom_utils import absolute_bounds_for_obj, dpx, is_focusable
 from element import Element
 from text import Text
 
 
 class AccessibilityNode:
-    def __init__(self, node) -> None:
+    def __init__(self, node, parent=None) -> None:
         self.node = node
         self.children = []
+        self.parent = parent
         self.text = ""
         self.bounds = self.compute_bounds()
         if isinstance(node, Text):
@@ -74,7 +75,7 @@ class AccessibilityNode:
             and child_node.frame
             and child_node.frame.loaded
         ):
-            child = AccessibilityNode(child_node.frame.nodes)
+            child = FrameAccessibilityNode(child_node)
         else:
             child = AccessibilityNode(child_node, self)
         if child.role != "none":
@@ -119,7 +120,49 @@ class AccessibilityNode:
                 node = res
         return node
 
+    def absolute_bounds(self):
+        abs_bounds = []
+        for bound in self.bounds:
+            abs_bound = bound.makeOff(0.0, 0.0)
+            if isinstance(self, FrameAccessibilityNode):
+                obj = self.parent
+            else:
+                obj = self
+            while obj:
+                obj.map_to_parent(abs_bound)
+                obj = obj.parent
+            abs_bounds.append(abs_bound)
+        return abs_bounds
+
+    def map_to_parent(self, rect):
+        pass
+
     def __repr__(self):
         return "AccessibilityNode(node={}, role={}, text={}, bounds={}".format(
             str(self.node), self.role, self.text, self.bounds
         )
+
+
+class FrameAccessibilityNode(AccessibilityNode):
+    def __init__(self, node, parent=None) -> None:
+        super().__init__(node, parent)
+        self.scroll = self.node.frame.scroll
+        self.zoom = self.node.layout_object.zoom
+
+    def hit_test(self, x, y):
+        bounds = self.bounds[0]
+        if not bounds.contains(x, y):
+            return
+        new_x = x - bounds.left() - dpx(1, self.zoom)
+        new_y = y - bounds.top() - dpx(1, self.zoom) + self.scroll
+        node = self
+        for child in self.children:
+            res = child.hit_test(new_x, new_y)
+            if res:
+                node = res
+        return node
+
+    def map_to_parent(self, rect):
+        bounds = self.bounds[0]
+        rect.offset(bounds.left(), bounds.top() - self.scroll)
+        rect.intersect(bounds)

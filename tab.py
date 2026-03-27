@@ -417,22 +417,6 @@ class Tab:
         if node:
             node.is_focused = True
 
-    def scroll_to(self, elt):
-        objs = [
-            obj for obj in tree_to_list(self.document, []) if obj.node == self.focus
-        ]
-        if not objs:
-            return
-        obj = objs[0]
-
-        if self.scroll < obj.y < self.scroll + self.tab_height:
-            return
-
-        document_height = math.ceil(self.document.height + 2 * VSTEP)
-        new_scroll = obj.y - SCROLL_STEP
-        self.scroll = self.clamp_scroll(new_scroll)
-        self.scroll_changed_in_tab = True
-
 
 class Frame:
     def __init__(self, tab, parent_frame, frame_element) -> None:
@@ -545,8 +529,29 @@ class Frame:
         self.set_needs_render()
 
     def scrolldown(self):
-        max_y = max(self.document.height + 2 * VSTEP - self.tab_height, 0)
-        self.scroll = min(self.scroll + SCROLL_STEP, max_y)
+        self.scroll = self.clamp_scroll(self.scroll + SCROLL_STEP)
+
+    def clamp_scroll(self, scroll):
+        height = math.ceil(self.document.height + 2 * VSTEP)
+        maxscroll = height - self.frame_height
+        return max(0, min(scroll, maxscroll))
+
+    def scroll_to(self, elt):
+        assert not (self.needs_style or self.needs_layout)
+        objs = [
+            obj for obj in tree_to_list(self.document, []) if obj.node == self.tab.focus
+        ]
+        if not objs:
+            return
+        obj = objs[0]
+
+        if self.scroll < obj.y < self.scroll + self.frame_height:
+            return
+
+        new_scroll = obj.y - SCROLL_STEP
+        self.scroll = self.clamp_scroll(new_scroll)
+        self.scroll_changed_in_frame = True
+        self.tab.set_needs_paint()
 
     def advance_tab(self):
         focusable_nodes = [
