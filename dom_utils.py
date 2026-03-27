@@ -19,7 +19,6 @@ from css_parser import CSSParser
 from draw_outline import DrawOutline
 from draw_rrect import DrawRRect
 from element import Element
-from iframe_layout import IframeLayout
 from numeric_animation import NumericAnimation
 from transform import Transform, map_translation
 
@@ -126,6 +125,7 @@ def cascade_priority(rule):
 
 
 def paint_tree(layout_object, display_list):
+    from iframe_layout import IframeLayout
     cmds = layout_object.paint()
 
     if (
