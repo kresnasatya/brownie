@@ -15,6 +15,7 @@ from dom_utils import (
     WIDTH,
     absolute_bounds_for_obj,
     cascade_priority,
+    dpx,
     get_tabindex,
     is_focusable,
     paint_tree,
@@ -42,6 +43,7 @@ class Tab:
         self.tab_height = tab_height
         self.history = []
         self.focus = None
+        self.focused_frame = None
         self.js = None
         self.needs_style = False
         self.needs_layout = False
@@ -66,6 +68,7 @@ class Tab:
 
     def click(self, x, y):
         self.render()
+        self.root_frame.click(x, y)
         self.focus_element(None)
         y += self.scroll
         loc_rect = skia.Rect.MakeXYWH(x, y, 1, 1)
@@ -280,8 +283,9 @@ class Tab:
             cmd.execute(canvas)
 
     def scrolldown(self):
-        max_y = max(self.document.height + 2 * VSTEP - self.tab_height, 0)
-        self.scroll = min(self.scroll + SCROLL_STEP, max_y)
+        frame = self.focused_frame or self.root_frame
+        frame.scrolldown()
+        self.set_needs_paint()
 
     def go_back(self):
         if len(self.history) > 1:
@@ -315,37 +319,45 @@ class Tab:
         self.set_needs_render()
 
     def run_animation_frame(self, scroll):
-        if not self.scroll_changed_in_tab:
-            self.scroll = scroll
+        if not self.root_frame.scroll_changed_in_frame:
+            self.root_frame.scroll = scroll
 
+        needs_composite = False
         for window_id, frame in self.window_id_to_frame.items():
             if not frame.loaded:
                 continue
+
+            self.browser.measure.time("script-runRAFHandlers")
             frame.js.dispatch_RAF(frame.window_id)
+            self.browser.measure.stop("script-runRAFHandlers")
 
-        self.browser.measure.time("script-runRAFHandlers")
-        self.js.interp.evaljs("__runRAFHandlers()")
-        self.browser.measure.stop("script-runRAFHandlers")
+            for node in tree_to_list(self.nodes, []):
+                for property_name, animation in node.animations.items():
+                    value = animation.animate()
+                    if value:
+                        node.style[property_name] = value
+                        self.composited_updates.append(node)
+                        self.set_needs_paint()
 
-        for node in tree_to_list(self.nodes, []):
-            for property_name, animation in node.animations.items():
-                value = animation.animate()
-                if value:
-                    node.style[property_name] = value
-                    self.composited_updates.append(node)
-                    self.set_needs_paint()
-
-        needs_composite = self.needs_style or self.needs_layout
+            if frame.needs_style or frame.needs_layout:
+                needs_composite = True
 
         self.render()
 
-        if self.needs_focus_scroll and self.focus:
-            self.scroll_to(self.focus)
-        self.needs_focus_scroll = False
+        if self.focus and self.focused_frame.needs_focus_scroll:
+            self.focused_frame.scroll_to(self.focus)
+            self.focused_frame.needs_focus_scroll = False
+
+        for window_id, frame in self.window_id_to_frame.items():
+            if frame == self.root_frame:
+                continue
+            if frame.scroll_changed_in_frame:
+                needs_composite = True
+                frame.scroll_changed_in_frame = False
 
         scroll = None
-        if self.scroll_changed_in_tab:
-            scroll = self.scroll
+        if self.root_frame.scroll_changed_in_frame:
+            scroll = self.root_frame.scroll
 
         composited_updates = None
         if not needs_composite:
@@ -354,40 +366,27 @@ class Tab:
                 composited_updates[node] = node.blend_op
         self.composited_updates = []
 
-        document_height = math.ceil(self.document.height + 2 * VSTEP)
+        root_frame_focused = (
+            not self.focused_frame or self.focused_frame == self.root_frame
+        )
         commit_data = CommitData(
             self.url,
             scroll,
-            document_height,
+            root_frame_focused,
+            math.ceil(self.root_frame.document.height),
             self.display_list,
             composited_updates,
             self.accessibility_tree,
             self.focus,
         )
         self.display_list = None
-        self.accessibility_tree = None
+        self.root_frame.scroll_changed_in_frame = False
+
         self.browser.commit(self, commit_data)
-        self.scroll_changed_in_tab = False
 
     def advance_tab(self):
-        focusable_nodes = [
-            node
-            for node in tree_to_list(self.nodes, [])
-            if isinstance(node, Element) and is_focusable(node)
-        ]
-        focusable_nodes.sort(key=get_tabindex)
-        print(focusable_nodes)
-
-        idx = 0
-        if self.focus in focusable_nodes:
-            idx = focusable_nodes.index(self.focus) + 1
-
-        if idx < len(focusable_nodes):
-            self.focus_element(focusable_nodes[idx])
-        else:
-            self.focus_element(None)
-            self.browser.focus_addressbar()
-        self.set_needs_render()
+        frame = self.focused_frame or self.root_frame
+        frame.advance_tab()
 
     def enter(self):
         if not self.focus:
@@ -449,6 +448,9 @@ class Frame:
         self.window_id = len(self.tab.window_id_to_frame)
         self.tab.window_id_to_frame[self.window_id] = self
 
+        self.scroll = 0
+        self.document = None
+
         self.frame_width = 0
         self.frame_height = 0
 
@@ -497,6 +499,74 @@ class Frame:
             task = Task(iframe.frame.load, document_url)
             self.tab.task_runner.schedule_task(task)
         self.loaded = True
+
+    def click(self, x, y):
+        self.focus_element(None)
+        y += self.scroll
+        loc_rect = skia.rect.MakeXYWH(x, y, 1, 1)
+        objs = [
+            obj
+            for obj in tree_to_list(self.document, [])
+            if absolute_bounds_for_obj(obj).intersects(loc_rect)
+        ]
+        if not objs:
+            return
+        elt = objs[-1].node
+        if elt and self.js.dispatch_event("click", elt, self.window_id):
+            return
+        while elt:
+            if isinstance(elt, Text):
+                pass
+            elif elt.tag == "iframe":
+                abs_bounds = absolute_bounds_for_obj(elt.layout_object)
+                border = dpx(1, elt.layout_object.zoom)
+                new_x = y - abs_bounds.left() - border
+                new_y = y - abs_bounds.top() - border
+                elt.frame.click(new_x, new_y)
+                return
+            elif is_focusable(elt):
+                self.focus_element(elt)
+                self.activate_element(elt)
+                self.set_needs_render()
+                return
+            elt = elt.parent
+
+    def focus_element(self, node):
+        if node and node != self.tab.focus:
+            self.needs_focus_scroll = True
+        if self.tab.focus:
+            self.tab.focus.is_focused = False
+        if self.tab.focused_frame and self.tab.focused_frame != self:
+            self.tab.focused_frame.set_needs_render()
+        self.tab.focus = node
+        self.tab.focused_frame = self
+        if node:
+            node.is_focused = True
+        self.set_needs_render()
+
+    def scrolldown(self):
+        max_y = max(self.document.height + 2 * VSTEP - self.tab_height, 0)
+        self.scroll = min(self.scroll + SCROLL_STEP, max_y)
+
+    def advance_tab(self):
+        focusable_nodes = [
+            node
+            for node in tree_to_list(self.nodes, [])
+            if isinstance(node, Element) and is_focusable(node)
+        ]
+        focusable_nodes.sort(key=get_tabindex)
+        print(focusable_nodes)
+
+        idx = 0
+        if self.tab.focus in focusable_nodes:
+            idx = focusable_nodes.index(self.tab.focus) + 1
+
+        if idx < len(focusable_nodes):
+            self.focus_element(focusable_nodes[idx])
+        else:
+            self.focus_element(None)
+            self.tab.browser.focus_addressbar()
+        self.set_needs_render()
 
     def allowed_request(self, url):
         return self.allowed_origins == None or url.origin() in self.allowed_origins

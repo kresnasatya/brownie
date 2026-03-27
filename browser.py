@@ -128,11 +128,19 @@ class Browser:
 
     def handle_down(self):
         self.lock.acquire(blocking=True)
-        if not self.active_tab_height:
+        if self.root_frame_focused:
+            if not self.active_tab_height:
+                self.lock.release()
+                return
+            self.active_tab_scroll = self.clamp_scroll(
+                self.active_tab_scroll + SCROLL_STEP
+            )
+            self.set_needs_raster()
+            self.needs_animation_frame = True
             self.lock.release()
             return
-        self.active_tab_scroll = self.clamp_scroll(self.active_tab_scroll + SCROLL_STEP)
-        self.set_needs_raster()
+        task = Task(self.active_tab.scrolldown)
+        self.active_tab.task_runner.schedule_task(task)
         self.needs_animation_frame = True
         self.lock.release()
 
@@ -315,6 +323,7 @@ class Browser:
             self.active_tab_url = data.url
             if data.scroll != None:
                 self.active_tab_scroll = data.scroll
+            self.root_frame_focused = data.root_frame_focused
             self.active_tab_height = data.height
             if data.display_list:
                 self.active_tab_display_list = data.display_list
