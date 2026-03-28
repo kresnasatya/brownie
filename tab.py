@@ -18,12 +18,12 @@ from dom_utils import (
     dpx,
     get_tabindex,
     is_focusable,
-    paint_tree,
     style,
     tree_to_list,
 )
 from element import Element
 from html_parser import HTMLParser
+from iframe_layout import IframeLayout
 from js_context import JSContext
 from task import Task
 from task_runner import TaskRunner
@@ -553,3 +553,20 @@ class Frame:
 
     def allowed_request(self, url):
         return self.allowed_origins == None or url.origin() in self.allowed_origins
+
+
+def paint_tree(layout_object, display_list):
+    cmds = layout_object.paint()
+
+    if (
+        isinstance(layout_object, IframeLayout)
+        and layout_object.node.frame
+        and layout_object.node.frame.loaded
+    ):
+        paint_tree(layout_object.node.frame.document, cmds)
+    else:
+        for child in layout_object.children:
+            paint_tree(child, cmds)
+
+    cmds = layout_object.paint_effects(cmds)
+    display_list.extend(cmds)
