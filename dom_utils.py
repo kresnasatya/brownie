@@ -76,7 +76,7 @@ INHERITED_PROPERTIES = {
 }
 
 
-def style(node, rules, tab):
+def style(node, rules, frame):
     old_style = node.style
 
     node.style = {}
@@ -87,7 +87,7 @@ def style(node, rules, tab):
             node.style[property] = default_value
     for media, selector, body in rules:
         if media:
-            if (media == "dark") != tab.dark_mode:
+            if (media == "dark") != frame.tab.dark_mode:
                 continue
         if not selector.matches(node):
             continue
@@ -110,13 +110,13 @@ def style(node, rules, tab):
         transitions = diff_styles(old_style, node.style)
         for property, (old_value, new_value, num_frames) in transitions.items():
             if property == "opacity":
-                tab.set_needs_render()
+                frame.set_needs_render()
                 animation = NumericAnimation(old_value, new_value, num_frames)
                 node.animations[property] = animation
                 node.style[property] = animation.animate()
 
     for child in node.children:
-        style(child, rules, tab)
+        style(child, rules, frame)
 
 
 def cascade_priority(rule):
@@ -126,6 +126,7 @@ def cascade_priority(rule):
 
 def paint_tree(layout_object, display_list):
     from iframe_layout import IframeLayout
+
     cmds = layout_object.paint()
 
     if (

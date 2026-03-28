@@ -9,18 +9,21 @@ from task import Task
 
 RUNTIME_JS = open("runtime.js").read()
 
-EVENT_DISPATCH_JS = "new Node(dukpy.handle).dispatchEvent(new Event(dukpy.type))"
+EVENT_DISPATCH_JS = (
+    "new window.Node(dukpy.handle).dispatchEvent(new window.Event(dukpy.type))"
+)
 
-RAF_RUN_JS = "__runRAFHandlers()"
+RAF_RUN_JS = "window.__runRAFHandlers()"
 
-SETTIMEOUT_JS = "__runSetTimeout(dukpy.handle)"
+SETTIMEOUT_JS = "window.__runSetTimeout(dukpy.handle)"
 
-XHR_ONLOAD_JS = "__runXHROnload(dukpy.out, dukpy.handle)"
+XHR_ONLOAD_JS = "window.__runXHROnload(dukpy.out, dukpy.handle)"
 
 
 class JSContext:
-    def __init__(self, tab):
+    def __init__(self, tab, url_origin):
         self.tab = tab
+        self.url_origin = url_origin
         self.interp = dukpy.JSInterpreter()
         self.interp.export_function("log", print)
         self.interp.export_function("querySelectorAll", self.querySelectorAll)
@@ -31,23 +34,28 @@ class JSContext:
         self.interp.export_function("requestAnimationFrame", self.requestAnimationFrame)
         self.interp.export_function("style_set", self.style_set)
         self.interp.export_function("setAttribute", self.setAttribute)
+        self.interp.evaljs("var window = this;")
         self.interp.evaljs(RUNTIME_JS)
+        self.interp.evaljs("function Window(id) { this._id = id };")
+        self.interp.evaljs("WINDOWS = {}")
 
         self.node_to_handle = {}
         self.handle_to_node = {}
 
         self.discarded = False
 
-    def run(self, script, code):
+    def run(self, script, code, window_id):
         try:
+            code = self.wrap(code, window_id)
             return self.interp.evaljs(code)
         except dukpy.JSRuntimeError as e:
             print("Script", script, "crashed", e)
 
-    def querySelectorAll(self, selector_text):
+    def querySelectorAll(self, selector_text, window_id):
+        frame = self.tab.window_id_to_frame[window_id]
         selector = CSSParser(selector_text).selector()
         nodes = [
-            node for node in tree_to_list(self.tab.nodes, []) if selector.matches(node)
+            node for node in tree_to_list(frame.nodes, []) if selector.matches(node)
         ]
         return [self.get_handle(node) for node in nodes]
 
@@ -65,68 +73,90 @@ class JSContext:
         attr = elt.attributes.get(attr, None)
         return attr if attr else ""
 
-    def dispatch_event(self, type, elt):
+    def dispatch_event(self, type, elt, window_id):
         handle = self.node_to_handle.get(elt, -1)
-        do_default = self.interp.evaljs(EVENT_DISPATCH_JS, type=type, handle=handle)
+        code = self.wrap(EVENT_DISPATCH_JS, window_id)
+        do_default = self.interp.evaljs(code, type=type, handle=handle)
         return not do_default
 
-    def dispatch_RAF(self):
-        self.interp.evaljs("window.__runRAFHandlers()")
+    def dispatch_RAF(self, window_id):
+        code = self.wrap("window.__runRAFHandlers()", window_id)
+        self.interp.evaljs(code)
 
-    def innerHTML_set(self, handle, s):
+    def innerHTML_set(self, handle, s, window_id):
+        frame = self.tab.window_id_to_frame[window_id]
         doc = HTMLParser("<html><body>" + s + "</body></html>").parse()
         new_nodes = doc.children[0].children
         elt = self.handle_to_node[handle]
         elt.children = new_nodes
         for child in elt.children:
             child.parent = elt
-        self.tab.set_needs_render()
+        frame.set_needs_render()
 
-    def XMLHttpRequest_send(self, method, url, body, isasync, handle):
-        full_url = self.tab.url.resolve(url)
-        if not self.tab.allowed_request(full_url):
+    def XMLHttpRequest_send(self, method, url, body, isasync, handle, window_id):
+        frame = self.tab.window_id_to_frame[window_id]
+        full_url = frame.url.resolve(url)
+        if not frame.allowed_request(full_url):
             raise Exception("Cross-origin XHR blocked by CSP")
-        if full_url.origin() != self.tab.url.origin():
+        if full_url.origin() != frame.url.origin():
             raise Exception("Cross-origin XHR request not allowed")
 
         def run_load():
             headers, response = full_url.request(self.tab.url, body)
             response = response.decode("utf8", "replace")
-            task = Task(self.dispatch_xhr_onload, response.handle)
+            task = Task(self.dispatch_xhr_onload, response, handle, window_id)
             self.tab.task_runner.schedule_task(task)
-            return response
+            if not isasync:
+                return response
 
         if not isasync:
             return run_load()
         else:
             threading.Thread(target=run_load).start()
 
-    def dispatch_settimeout(self, handle):
-        if self.discarded:
-            return
-        self.interp.evaljs(SETTIMEOUT_JS, handle=handle)
+    def dispatch_settimeout(self, handle, window_id):
+        self.tab.browser.measure.time("script-settimeout")
+        self.interp.evaljs(self.wrap(SETTIMEOUT_JS, window_id), handle=handle)
+        self.tab.browser.measure.stop("script-settimeout")
 
-    def setTimeout(self, handle, time):
+    def setTimeout(self, handle, time, window_id):
         def run_callback():
-            task = Task(self.dispatch_settimeout, handle)
+            task = Task(self.dispatch_settimeout, handle, window_id)
             self.tab.task_runner.schedule_task(task)
 
         threading.Timer(time / 1000.0, run_callback).start()
 
-    def dispatch_xhr_onload(self, out, handle):
-        if self.discarded:
-            return
-        do_default = self.interp.evaljs(XHR_ONLOAD_JS, out=out, handle=handle)
+    def dispatch_xhr_onload(self, out, handle, window_id):
+        code = self.wrap(XHR_ONLOAD_JS, window_id)
+        self.tab.browser.measure.time("script-xhr")
+        self.interp.evaljs(code, out=out, handle=handle)
+        self.tab.browser.measure.stop("script-xhr")
 
     def requestAnimationFrame(self):
         self.tab.browser.set_needs_animation_frame(self.tab)
 
-    def style_set(self, handle, s):
+    def style_set(self, handle, s, window_id):
+        frame = self.tab.window_id_to_frame[window_id]
         elt = self.handle_to_node[handle]
         elt.attributes["style"] = s
-        self.tab.set_needs_render()
+        frame.set_needs_render()
 
-    def setAttribute(self, handle, attr, value):
+    def setAttribute(self, handle, attr, value, window_id):
         elt = self.handle_to_node[handle]
         elt.attributes[attr] = value
-        self.tab.set_needs_render()
+        self.tab.set_needs_render_all_frames()
+
+    def add_window(self, frame):
+        code = "var window_{} = new Window({})".format(frame.window_id, frame.window_id)
+        self.interp.evaljs(code)
+
+        self.tab.browser.measure.time("script-runtime")
+        self.interp.evaljs(self.wrap(RUNTIME_JS, frame.window_id))
+        self.tab.browser.measure.stop("script-runtime")
+
+        self.interp.evaljs(
+            "WINDOWS[{}] = window_{};".format(frame.window_id, frame.window_id)
+        )
+
+    def wrap(self, script, window_id):
+        return "window = window_{}; {}".format(window_id, script)

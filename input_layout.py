@@ -14,8 +14,8 @@ INPUT_WIDTH_PX = 200
 
 
 class InputLayout(EmbedLayout):
-    def __init__(self, node, parent, previous) -> None:
-        super().__init__(node, parent, previous)
+    def __init__(self, node, parent, previous, frame) -> None:
+        super().__init__(node, parent, previous, frame)
 
     def layout(self):
         super().layout()

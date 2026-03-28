@@ -6,6 +6,7 @@ import skia
 from dom_utils import VSTEP, dpx, font, get_font, paint_outline, paint_visual_effects
 from draw_rrect import DrawRRect
 from element import Element
+from iframe_layout import IFRAME_WIDTH_PX, IframeLayout
 from image_layout import ImageLayout
 from input_layout import InputLayout
 from line_layout import LineLayout
@@ -56,11 +57,12 @@ BLOCK_ELEMENTS = [
 
 
 class BlockLayout:
-    def __init__(self, node, parent, previous):
+    def __init__(self, node, parent, previous, frame=None):
         self.node = node
         node.layout_object = self
         self.parent = parent
         self.previous = previous
+        self.frame = frame
         self.children = []
         self.x = None
         self.y = None
@@ -82,7 +84,7 @@ class BlockLayout:
         if mode == "block":
             previous = None
             for child in self.node.children:
-                next = BlockLayout(child, self, previous)
+                next = BlockLayout(child, self, previous, self.frame)
                 self.children.append(next)
                 previous = next
         else:
@@ -180,7 +182,7 @@ class BlockLayout:
             w = dpx(int(self.node.attributes["width"]), self.zoom)
         else:
             w = IFRAME_WIDTH_PX + dpx(2, self.zoom)
-        self.add_inline_child(node, w, IframeLayout, self.frame)
+        self.add_inline_child(node, w, IframeLayout, frame=self.frame)
 
     def input(self, node):
         w = dpx(INPUT_WIDTH_PX, self.zoom)
@@ -190,12 +192,12 @@ class BlockLayout:
         w = dpx(node.image.width(), self.zoom)
         if "width" in node.attributes:
             w = dpx(int(node.attributes["width"]), self.zoom)
-        self.add_inline_child(node, w, ImageLayout)
+        self.add_inline_child(node, w, ImageLayout, frame=self.frame)
 
     def layout_intermediate(self):
         previous = None
         for child in self.node.children:
-            next = BlockLayout(child, self, previous)
+            next = BlockLayout(child, self, previous, self.frame)
             self.children.append(next)
             previous = next
 
@@ -224,13 +226,15 @@ class BlockLayout:
         paint_outline(self.node, cmds, self.self_rect(), self.zoom)
         return cmds
 
-    def add_inline_child(self, node, w, child_class, word=None):
+    def add_inline_child(self, node, w, child_class, word=None, frame=None):
         if self.cursor_x + w > self.x + self.width:
             self.new_line()
         line = self.children[-1]
         previous_word = line.children[-1] if line.children else None
         if word:
             child = child_class(node, word, line, previous_word)
+        elif frame:
+            child = child_class(node, line, previous_word, frame)
         else:
             child = child_class(node, line, previous_word)
         line.children.append(child)

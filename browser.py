@@ -280,6 +280,8 @@ class Browser:
         self.clear_data()
         self.needs_animation_frame = True
         self.animation_timer = None
+        task = Task(self.active_tab.set_needs_render_all_frames)
+        self.active_tab.task_runner.schedule_task(task)
         task = Task(self.active_tab.set_dark_mode, self.dark_mode)
         self.active_tab.task_runner.schedule_task(task)
 
