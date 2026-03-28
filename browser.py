@@ -299,6 +299,7 @@ class Browser:
             scroll = self.active_tab_scroll
             active_tab = self.active_tab
             self.needs_animation_frame = False
+            self.animation_timer = None
             self.lock.release()
             task = Task(active_tab.run_animation_frame, scroll)
             active_tab.task_runner.schedule_task(task)
