@@ -5,6 +5,7 @@ class EmbedLayout:
     def __init__(self, node, parent, previous, frame) -> None:
         self.node = node
         self.frame = frame
+        node.layout_object = self
         self.children = []
         self.x = None
         self.y = None

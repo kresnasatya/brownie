@@ -55,7 +55,8 @@ class IframeLayout(EmbedLayout):
             self.x, self.y, self.x + self.width, self.y + self.height
         )
         diff = dpx(1, self.zoom)
-        offset = (self.x + diff, self.y + diff)
+        scroll = self.node.frame.scroll if (self.node.frame and self.node.frame.loaded) else 0
+        offset = (self.x + diff, self.y + diff - scroll)
         cmds = [Transform(offset, rect, self.node, cmds)]
         inner_rect = skia.Rect.MakeLTRB(
             self.x + diff,

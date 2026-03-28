@@ -510,6 +510,7 @@ class Frame:
 
     def scrolldown(self):
         self.scroll = self.clamp_scroll(self.scroll + SCROLL_STEP)
+        self.scroll_changed_in_frame = True
 
     def clamp_scroll(self, scroll):
         height = math.ceil(self.document.height + 2 * VSTEP)
