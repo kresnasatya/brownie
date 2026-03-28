@@ -51,7 +51,7 @@ def mainloop(browser):
                         elif event.key.keysym.sym == sdl2.SDLK_a:
                             browser.toggle_accessibility()
                         elif event.key.keysym.sym == sdl2.SDLK_t:
-                            browser.new_tab(URL("https://browser.engineering"))
+                            browser.new_tab()
                         elif event.key.keysym.sym == sdl2.SDLK_TAB:
                             browser.cycle_tabs()
                         elif event.key.keysym.sym == sdl2.SDLK_q:

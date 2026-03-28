@@ -263,17 +263,18 @@ class Browser:
         self.root_surface.flushAndSubmit()
         sdl2.SDL_GL_SwapWindow(self.sdl_window)
 
-    def new_tab(self, url):
+    def new_tab(self, url=None):
         self.lock.acquire(blocking=True)
         self.new_tab_internal(url)
         self.lock.release()
 
-    def new_tab_internal(self, url):
+    def new_tab_internal(self, url=None):
         print("new tab opened")
         new_tab = Tab(self, HEIGHT - self.chrome.bottom)
         self.tabs.append(new_tab)
         self.set_active_tab(new_tab)
-        self.schedule_load(url)
+        if url:
+            self.schedule_load(url)
 
     def set_active_tab(self, tab):
         self.active_tab = tab

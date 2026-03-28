@@ -181,6 +181,8 @@ class Tab:
         self.set_needs_render_all_frames()
 
     def run_animation_frame(self, scroll):
+        if not self.root_frame:
+            return
         if not self.root_frame.scroll_changed_in_frame:
             self.root_frame.scroll = scroll
 
