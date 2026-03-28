@@ -435,9 +435,11 @@ class Frame:
             if isinstance(elt, Text):
                 pass
             elif elt.tag == "iframe":
+                if not elt.layout_object:
+                    return
                 abs_bounds = absolute_bounds_for_obj(elt.layout_object)
                 border = dpx(1, elt.layout_object.zoom)
-                new_x = y - abs_bounds.left() - border
+                new_x = x - abs_bounds.left() - border
                 new_y = y - abs_bounds.top() - border
                 elt.frame.click(new_x, new_y)
                 return
