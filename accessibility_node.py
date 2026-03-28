@@ -74,6 +74,7 @@ class AccessibilityNode:
             and child_node.tag == "iframe"
             and child_node.frame
             and child_node.frame.loaded
+            and child_node.layout_object
         ):
             child = FrameAccessibilityNode(child_node)
         else:
