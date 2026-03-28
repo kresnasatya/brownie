@@ -36,6 +36,8 @@ class JSContext:
         self.interp.export_function("requestAnimationFrame", self.requestAnimationFrame)
         self.interp.export_function("style_set", self.style_set)
         self.interp.export_function("setAttribute", self.setAttribute)
+        self.interp.export_function("parent", self.parent)
+        self.interp.export_function("postMessage", self.postMessage)
         self.interp.evaljs("function Window(id) { this._id = id };")
         self.interp.evaljs("WINDOWS = {}")
 
