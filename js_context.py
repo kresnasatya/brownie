@@ -19,6 +19,8 @@ SETTIMEOUT_JS = "window.__runSetTimeout(dukpy.handle)"
 
 XHR_ONLOAD_JS = "window.__runXHROnload(dukpy.out, dukpy.handle)"
 
+POST_MESSAGE_DISPATCH_JS = "window.dispatchEvent(new window.MessageEvent(dukpy.data))"
+
 
 class JSContext:
     def __init__(self, tab, url_origin):
@@ -34,8 +36,6 @@ class JSContext:
         self.interp.export_function("requestAnimationFrame", self.requestAnimationFrame)
         self.interp.export_function("style_set", self.style_set)
         self.interp.export_function("setAttribute", self.setAttribute)
-        self.interp.evaljs("var window = this;")
-        self.interp.evaljs(RUNTIME_JS)
         self.interp.evaljs("function Window(id) { this._id = id };")
         self.interp.evaljs("WINDOWS = {}")
 
@@ -53,6 +53,7 @@ class JSContext:
 
     def querySelectorAll(self, selector_text, window_id):
         frame = self.tab.window_id_to_frame[window_id]
+        self.throw_if_cross_origin(frame)
         selector = CSSParser(selector_text).selector()
         nodes = [
             node for node in tree_to_list(frame.nodes, []) if selector.matches(node)
@@ -85,6 +86,7 @@ class JSContext:
 
     def innerHTML_set(self, handle, s, window_id):
         frame = self.tab.window_id_to_frame[window_id]
+        self.throw_if_cross_origin(frame)
         doc = HTMLParser("<html><body>" + s + "</body></html>").parse()
         new_nodes = doc.children[0].children
         elt = self.handle_to_node[handle]
@@ -137,11 +139,14 @@ class JSContext:
 
     def style_set(self, handle, s, window_id):
         frame = self.tab.window_id_to_frame[window_id]
+        self.throw_if_cross_origin(frame)
         elt = self.handle_to_node[handle]
         elt.attributes["style"] = s
         frame.set_needs_render()
 
     def setAttribute(self, handle, attr, value, window_id):
+        frame = self.tab.window_id_to_frame[window_id]
+        self.throw_if_cross_origin(frame)
         elt = self.handle_to_node[handle]
         elt.attributes[attr] = value
         self.tab.set_needs_render_all_frames()
@@ -160,3 +165,20 @@ class JSContext:
 
     def wrap(self, script, window_id):
         return "window = window_{}; {}".format(window_id, script)
+
+    def parent(self, window_id):
+        parent_frame = self.tab.window_id_to_frame[window_id].parent_frame
+        if not parent_frame:
+            return None
+        return parent_frame.window_id
+
+    def throw_if_cross_origin(self, frame):
+        if frame.url.origin() != self.url_origin:
+            raise Exception("Cross-origin access disallowed from script")
+
+    def postMessage(self, target_window_id, message, origin):
+        task = Task(self.tab.post_message, message, target_window_id)
+        self.tab.task_runner.schedule_task(task)
+
+    def dispatch_post_message(self, message, window_id):
+        self.interp.evaljs(self.wrap(POST_MESSAGE_DISPATCH_JS, window_id), data=message)

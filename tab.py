@@ -259,6 +259,10 @@ class Tab:
         if node:
             node.is_focused = True
 
+    def post_message(self, message, target_window_id):
+        frame = self.window_id_to_frame[target_window_id]
+        frame.js.dispatch_post_message(message, target_window_id)
+
 
 class Frame:
     def __init__(self, tab, parent_frame, frame_element) -> None:
