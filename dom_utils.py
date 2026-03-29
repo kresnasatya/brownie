@@ -221,6 +221,8 @@ def is_focusable(node):
         return False
     elif "tabindex" in node.attributes:
         return True
+    elif "contenteditable" in node.attributes:
+        return True
     else:
         return node.tag in ["input", "button", "a"]
 

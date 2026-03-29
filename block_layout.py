@@ -3,7 +3,16 @@ import ctypes
 import sdl2
 import skia
 
-from dom_utils import VSTEP, dpx, font, get_font, paint_outline, paint_visual_effects
+from dom_utils import (
+    VSTEP,
+    dpx,
+    font,
+    get_font,
+    paint_outline,
+    paint_visual_effects,
+    tree_to_list,
+)
+from draw_line import DrawCursor
 from draw_rrect import DrawRRect
 from element import Element
 from iframe_layout import IFRAME_WIDTH_PX, IframeLayout
@@ -222,6 +231,15 @@ class BlockLayout:
         )
 
     def paint_effects(self, cmds):
+        if self.node.is_focused and "contenteditable" in self.node.attributes:
+            text_nodes = [
+                t for t in tree_to_list(self, []) if isinstance(t, TextLayout)
+            ]
+            if text_nodes:
+                cmds.append(DrawCursor(text_nodes[-1], text_nodes[-1].width))
+            else:
+                cmds.append(DrawCursor(self, 0))
+
         cmds = paint_visual_effects(self.node, cmds, self.self_rect())
         paint_outline(self.node, cmds, self.self_rect(), self.zoom)
         return cmds

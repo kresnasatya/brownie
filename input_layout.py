@@ -4,7 +4,7 @@ import sdl2
 import skia
 
 from dom_utils import dpx, linespace, paint_outline, paint_visual_effects
-from draw_line import DrawLine
+from draw_line import DrawCursor, DrawLine
 from draw_rrect import DrawRRect
 from draw_text import DrawText
 from embed_layout import EmbedLayout
@@ -44,8 +44,7 @@ class InputLayout(EmbedLayout):
         cmds.append(DrawText(self.x, self.y, text, self.font, color))
 
         if self.node.is_focused and self.node.tag == "input":
-            cx = self.x + self.font.measureText(text)
-            cmds.append(DrawLine(cx, self.y, cx, self.y + self.height, "black", 1))
+            cmds.append(DrawCursor(self, self.font.measureText(text)))
         return cmds
 
     def self_rect(self):

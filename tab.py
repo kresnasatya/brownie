@@ -507,6 +507,17 @@ class Frame:
                 return
             self.focus.attributes["value"] += char
             self.set_needs_render()
+        elif self.tab.focus and "contenteditable" in self.tab.focus.attributes:
+            text_nodes = [
+                t for t in tree_to_list(self.tab.focus, []) if isinstance(t, Text)
+            ]
+            if text_nodes:
+                last_text = text_nodes[-1]
+            else:
+                last_text = Text("", self.tab.focus)
+                self.tab.focus.children.append(last_text)
+            last_text.text += char
+            self.set_needs_render()
 
     def scrolldown(self):
         self.scroll = self.clamp_scroll(self.scroll + SCROLL_STEP)
