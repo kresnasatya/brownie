@@ -197,7 +197,7 @@ class BlockLayout:
 
     def input(self, node):
         w = dpx(INPUT_WIDTH_PX, self.zoom)
-        self.add_inline_child(node, w, InputLayout)
+        self.add_inline_child(node, w, InputLayout, frame=self.frame)
 
     def image(self, node):
         w = dpx(node.image.width(), self.zoom)
