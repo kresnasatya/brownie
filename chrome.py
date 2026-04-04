@@ -160,7 +160,8 @@ class Chrome:
         if self.newtab_rect.contains(x, y):
             self.browser.new_tab_internal()
         elif self.back_rect.contains(x, y):
-            self.browser.active_tab.go_back()
+            task = Task(self.browser.active_tab.go_back)
+            self.browser.active_tab.task_runner.schedule_task(task)
         elif self.address_rect.contains(x, y):
             self.focus = "address bar"
             self.address_bar = ""
