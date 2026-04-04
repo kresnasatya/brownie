@@ -28,12 +28,8 @@ class CompositedLayer:
         irect = bounds.roundOut()
 
         if not self.surface:
-            self.surface = skia.Surface.MakeRenderTarget(
-                self.skia_context,
-                skia.Budgeted.kNo,
-                skia.ImageInfo.MakeN32Premul(irect.width(), irect.height()),
-            )
-            assert self.surface
+            self.surface = skia.Surface(irect.width(), irect.height())
+
         canvas = self.surface.getCanvas()
 
         canvas.clear(skia.ColorTRANSPARENT)

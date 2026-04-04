@@ -2,7 +2,6 @@ import ctypes
 import math
 import threading
 
-import OpenGL.GL
 import sdl2
 import skia
 
@@ -38,47 +37,27 @@ class Browser:
             sdl2.SDL_WINDOWPOS_CENTERED,
             WIDTH,
             HEIGHT,
-            sdl2.SDL_WINDOW_SHOWN | sdl2.SDL_WINDOW_OPENGL,
+            sdl2.SDL_WINDOW_SHOWN,
         )
 
-        sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_CONTEXT_MAJOR_VERSION, 3)
-        sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_CONTEXT_MINOR_VERSION, 2)
-        sdl2.SDL_GL_SetAttribute(sdl2.SDL_GL_CONTEXT_FORWARD_COMPATIBLE_FLAG, True)
-        sdl2.SDL_GL_SetAttribute(
-            sdl2.SDL_GL_CONTEXT_PROFILE_MASK, sdl2.SDL_GL_CONTEXT_PROFILE_CORE
-        )
-        self.gl_context = sdl2.SDL_GL_CreateContext(self.sdl_window)
-        print(
-            ("OpenGL initialized: vendor={}," + "renderer={}").format(
-                OpenGL.GL.glGetString(OpenGL.GL.GL_VENDOR),
-                OpenGL.GL.glGetString(OpenGL.GL.GL_RENDERER),
+        self.root_surface = skia.Surface.MakeRaster(
+            skia.ImageInfo.Make(
+                WIDTH, HEIGHT, ct=skia.kRGBA_8888_ColorType, at=skia.kUnpremul_AlphaType
             )
         )
-        self.skia_context = skia.GrDirectContext.MakeGL()
-
-        self.root_surface = skia.Surface.MakeFromBackendRenderTarget(
-            self.skia_context,
-            skia.GrBackendRenderTarget(
-                WIDTH, HEIGHT, 0, 0, skia.GrGLFramebufferInfo(0, OpenGL.GL.GL_RGBA8)
-            ),
-            skia.kBottomLeft_GrSurfaceOrigin,
-            skia.kRGBA_8888_ColorType,
-            skia.ColorSpace.MakeSRGB(),
-        )
-        assert self.root_surface is not None
-
-        self.chrome_surface = skia.Surface.MakeRenderTarget(
-            self.skia_context,
-            skia.Budgeted.kNo,
-            skia.ImageInfo.MakeN32Premul(WIDTH, math.ceil(self.chrome.bottom)),
-        )
-        assert self.chrome_surface is not None
-
-        self.tab_surface = None
+        self.chrome_surface = skia.Surface(WIDTH, math.ceil(self.chrome.bottom))
+        self.skia_context = None
 
         self.tabs = []
         self.active_tab = None
         self.focus = None
+        self.address_bar = ""
+        self.lock = threading.Lock()
+        self.active_tab_url = None
+        self.active_tab_scroll = 0
+
+        self.measure = MeasureTime()
+        threading.current_thread().name = "Browser thread"
 
         if sdl2.SDL_BYTEORDER == sdl2.SDL_BIG_ENDIAN:
             self.RED_MASK = 0xFF000000
@@ -92,22 +71,18 @@ class Browser:
             self.ALPHA_MASK = 0xFF000000
 
         self.animation_timer = None
+
         self.needs_animation_frame = True
         self.needs_composite = False
         self.needs_raster = False
         self.needs_draw = False
-        self.measure = MeasureTime()
-        threading.current_thread().name = "Browser thread"
 
-        self.lock = threading.Lock()
-        self.active_tab_url = None
-        self.active_tab_scroll = 0
         self.active_tab_height = 0
         self.active_tab_display_list = None
 
+        self.composited_updates = {}
         self.composited_layers = []
         self.draw_list = []
-        self.composited_updates = {}
 
         self.dark_mode = False
         self.needs_accesibility = False
@@ -252,8 +227,30 @@ class Browser:
         self.chrome_surface.draw(canvas, 0, 0)
         canvas.restore()
 
-        self.root_surface.flushAndSubmit()
-        sdl2.SDL_GL_SwapWindow(self.sdl_window)
+        # This makes an image interface to the Skia surface, but
+        # doesn't actually copy anything yet.
+        skia_image = self.root_surface.makeImageSnapshot()
+        skia_bytes = skia_image.tobytes()
+
+        depth = 32  # Bits per pixel
+        pitch = 4 * WIDTH  # Bytes per row
+        sdl_surface = sdl2.SDL_CreateRGBSurfaceFrom(
+            skia_bytes,
+            WIDTH,
+            HEIGHT,
+            depth,
+            pitch,
+            self.RED_MASK,
+            self.GREEN_MASK,
+            self.BLUE_MASK,
+            self.ALPHA_MASK,
+        )
+
+        rect = sdl2.SDL_Rect(0, 0, WIDTH, HEIGHT)
+        window_surface = sdl2.SDL_GetWindowSurface(self.sdl_window)
+        # SDL_BlitSurface is what actually does the copy.
+        sdl2.SDL_BlitSurface(sdl_surface, rect, window_surface, rect)
+        sdl2.SDL_UpdateWindowSurface(self.sdl_window)
 
     def new_tab(self, url):
         self.lock.acquire(blocking=True)
@@ -275,11 +272,15 @@ class Browser:
         task = Task(self.active_tab.set_dark_mode, self.dark_mode)
         self.active_tab.task_runner.schedule_task(task)
 
+    def go_back(self):
+        task = Task(self.active_tab.go_back)
+        self.active_tab.task_runner.schedule_task(task)
+        self.clear_data()
+
     def handle_quit(self):
         self.measure.finish()
         for tab in self.tabs:
             tab.task_runner.set_needs_quit()
-        sdl2.SDL_GL_DeleteContext(self.gl_context)
         sdl2.SDL_DestroyWindow(self.sdl_window)
 
     def schedule_animation_frame(self):
@@ -348,6 +349,12 @@ class Browser:
             return
         self.needs_accesibility = True
         self.needs_draw = True
+
+        self.active_tab_height = 0
+        for layer in self.composited_layers:
+            self.active_tab_height = max(
+                self.active_tab_height, layer.absolute().bottom
+            )
 
     def toggle_accessibility(self):
         self.lock.acquire(blocking=True)
