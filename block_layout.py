@@ -92,11 +92,13 @@ class BlockLayout:
         mode = self.layout_mode()
         if mode == "block":
             previous = None
+            self.children = []
             for child in self.node.children:
                 next = BlockLayout(child, self, previous, self.frame)
                 self.children.append(next)
                 previous = next
         else:
+            self.children = []
             self.new_line()
             self.recurse(self.node)
 

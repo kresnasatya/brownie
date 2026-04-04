@@ -309,7 +309,6 @@ class Frame:
             self.needs_style = False
 
         if self.needs_layout:
-            self.document = DocumentLayout(self.nodes, self)
             self.document.layout(self.frame_width, self.tab.zoom)
             self.tab.needs_accessibility = True
             self.needs_paint = True
@@ -414,6 +413,7 @@ class Frame:
             task = Task(iframe.frame.load, document_url)
             self.tab.task_runner.schedule_task(task)
 
+        self.document = DocumentLayout(self.nodes, self)
         self.set_needs_render()
         self.loaded = True
 

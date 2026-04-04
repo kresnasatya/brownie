@@ -15,8 +15,11 @@ class DocumentLayout:
 
     def layout(self, width, zoom):
         self.zoom = zoom
-        child = BlockLayout(self.node, self, None, self.frame)
-        self.children.append(child)
+        if not self.children:
+            child = BlockLayout(self.node, self, None, self.frame)
+        else:
+            child = self.children[0]
+        self.children = [child]
 
         self.width = width - 2 * dpx(HSTEP, self.zoom)
         self.x = dpx(HSTEP, self.zoom)
