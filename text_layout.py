@@ -1,6 +1,13 @@
 import skia
 
-from dom_utils import dpx, get_font, linespace, paint_outline, paint_visual_effects
+from dom_utils import (
+    dpx,
+    font,
+    get_font,
+    linespace,
+    paint_outline,
+    paint_visual_effects,
+)
 from draw_text import DrawText
 
 
@@ -18,20 +25,18 @@ class TextLayout:
 
     def layout(self):
         self.zoom = self.parent.zoom
-        weight = self.node.style["font-weight"]
-        style = self.node.style["font-style"]
-        if style == "normal":
-            style = "roman"
-        px_size = float(self.node.style["font-size"][:2])
-        size = dpx(px_size * 0.75, self.zoom)
-        self.font = get_font(size, weight, style)
+        self.font = font(self.node.style, self.zoom)
+
+        # Do not set self.y
         self.width = self.font.measureText(self.word)
+
         if self.previous:
             space = self.previous.font.measureText(" ")
             self.x = self.previous.x + space + self.previous.width
         else:
             self.x = self.parent.x
         self.height = linespace(self.font)
+
         self.ascent = self.font.getMetrics().fAscent * 1.25
         self.descent = self.font.getMetrics().fDescent * 1.25
 
