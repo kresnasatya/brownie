@@ -91,12 +91,14 @@ class BlockLayout:
             self.y = self.parent.y
         mode = self.layout_mode()
         if mode == "block":
-            previous = None
-            self.children = []
-            for child in self.node.children:
-                next = BlockLayout(child, self, previous, self.frame)
-                self.children.append(next)
-                previous = next
+            if self.children_dirty:
+                previous = None
+                self.children = []
+                for child in self.node.children:
+                    next = BlockLayout(child, self, previous, self.frame)
+                    self.children.append(next)
+                    previous = next
+                self.children_dirty = False
         else:
             self.children = []
             self.new_line()
