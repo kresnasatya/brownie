@@ -73,13 +73,13 @@ class BlockLayout:
         self.parent = parent
         self.previous = previous
         self.frame = frame
-        self.children = ProtectedField()
-        self.x = ProtectedField()
-        self.y = ProtectedField()
-        self.width = ProtectedField()
-        self.height = ProtectedField()
+        self.children = ProtectedField(self, "children")
+        self.x = ProtectedField(self, "x")
+        self.y = ProtectedField(self, "y")
+        self.width = ProtectedField(self, "width")
+        self.height = ProtectedField(self, "height")
         self.children_dirty = True
-        self.zoom = ProtectedField()
+        self.zoom = ProtectedField(self, "zoom")
         self.parent.zoom.invalidations.add(self.zoom)
 
     def __repr__(self):

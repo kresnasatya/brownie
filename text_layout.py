@@ -19,14 +19,14 @@ class TextLayout:
         self.children = []
         self.parent = parent
         self.previous = previous
-        self.x = ProtectedField()
-        self.y = ProtectedField()
-        self.width = ProtectedField()
-        self.height = ProtectedField()
-        self.font = ProtectedField()
-        self.ascent = ProtectedField()
-        self.descent = ProtectedField()
-        self.zoom = ProtectedField()
+        self.x = ProtectedField(self, "x")
+        self.y = ProtectedField(self, "y")
+        self.width = ProtectedField(self, "width")
+        self.height = ProtectedField(self, "height")
+        self.font = ProtectedField(self, "font")
+        self.ascent = ProtectedField(self, "ascent")
+        self.descent = ProtectedField(self, "descent")
+        self.zoom = ProtectedField(self, "zoom")
 
     def layout(self):
         zoom = self.zoom.read(notify=self.font)

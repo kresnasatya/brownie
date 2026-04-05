@@ -11,11 +11,11 @@ class LineLayout:
         self.parent = parent
         self.previous = previous
         self.children = []
-        self.width = ProtectedField()
-        self.y = ProtectedField()
-        self.x = ProtectedField()
-        self.ascent = ProtectedField()
-        self.descent = ProtectedField()
+        self.width = ProtectedField(self, "width")
+        self.y = ProtectedField(self, "y")
+        self.x = ProtectedField(self, "x")
+        self.ascent = ProtectedField(self, "ascent")
+        self.descent = ProtectedField(self, "descent")
 
     def layout(self):
         self.zoom = self.parent.zoom

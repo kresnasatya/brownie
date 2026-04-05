@@ -1,8 +1,15 @@
 class ProtectedField:
-    def __init__(self) -> None:
+    def __init__(self, obj, name) -> None:
+        self.obj = obj
+        self.name = name
         self.value = None
         self.dirty = True
         self.invalidations = set()
+
+    def __repr__(self) -> str:
+        return "ProtectedField({}, {})".format(
+            self.obj.node if hasattr(self.obj, "node") else self.obj, self.name
+        )
 
     def mark(self):
         if self.dirty:
@@ -14,7 +21,8 @@ class ProtectedField:
         return self.value
 
     def set(self, value):
-        self.notify()
+        if value != self.value:
+            self.notify()
         self.value = value
         self.dirty = False
 
