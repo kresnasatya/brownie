@@ -5,6 +5,7 @@ import urllib.parse
 import skia
 
 from accessibility_node import AccessibilityNode
+from block_layout import BlockLayout
 from commit_data import CommitData
 from css_parser import CSSParser
 from document_layout import DocumentLayout
@@ -523,6 +524,11 @@ class Frame:
                 last_text = Text("", self.tab.focus)
                 self.tab.focus.children.append(last_text)
             last_text.text += char
+            obj = self.tab.focus.layout_object
+            if obj:
+                while not isinstance(obj, BlockLayout):
+                    obj = obj.parent
+                obj.children_dirty = True
             self.set_needs_render()
 
     def scrolldown(self):

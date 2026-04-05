@@ -2,6 +2,7 @@ import threading
 
 import dukpy
 
+from block_layout import BlockLayout
 from css_parser import CSSParser
 from dom_utils import tree_to_list
 from html_parser import HTMLParser
@@ -95,6 +96,11 @@ class JSContext:
         elt.children = new_nodes
         for child in elt.children:
             child.parent = elt
+        obj = elt.layout_object
+        if obj:
+            while not isinstance(obj, BlockLayout):
+                obj = obj.parent
+            obj.children_dirty = True
         frame.set_needs_render()
 
     def XMLHttpRequest_send(self, method, url, body, isasync, handle, window_id):
