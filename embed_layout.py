@@ -8,11 +8,12 @@ class EmbedLayout:
         self.frame = frame
         node.layout_object = self
         self.children = []
-        self.x = None
-        self.y = None
+        self.x = ProtectedField()
+        self.y = ProtectedField()
         self.width = ProtectedField()
-        self.height = None
-        self.font = None
+        self.height = ProtectedField()
+        self.font = ProtectedField()
+        self.zoom = ProtectedField()
         self.parent = parent
         self.previous = previous
 

@@ -19,27 +19,37 @@ class TextLayout:
         self.children = []
         self.parent = parent
         self.previous = previous
-        self.x = None
-        self.y = None
+        self.x = ProtectedField()
+        self.y = ProtectedField()
         self.width = ProtectedField()
-        self.height = None
+        self.height = ProtectedField()
+        self.font = ProtectedField()
+        self.ascent = ProtectedField()
+        self.descent = ProtectedField()
+        self.zoom = ProtectedField()
 
     def layout(self):
-        style = self.width.read(self.node.style)
-        zoom = self.width.read(self.zoom)
-        self.font = font(style, zoom)
+        zoom = self.zoom.read(notify=self.font)
+        style = self.node.style.read(notify=self.font)
+        self.font.set(font(style, zoom))
 
-        self.width.set(self.font.measureText(self.word))
+        f = self.font.read(notify=self.width)
+        self.width.set(f.measureText(self.word))
 
         if self.previous:
-            space = self.previous.font.measureText(" ")
-            self.x = self.previous.x + space + self.previous.width
+            prev_x = self.previous.x.read(notify=self.x)
+            prev_font = self.previous.font.read(notify=self.x)
+            prev_width = self.previous.width.read(notify=self.x)
+            self.x.set(prev_x + prev_font.measureText(" ") + prev_width)
         else:
-            self.x = self.parent.x
-        self.height = linespace(self.font)
+            self.x.copy(self.parent.x)
 
-        self.ascent = self.font.getMetrics().fAscent * 1.25
-        self.descent = self.font.getMetrics().fDescent * 1.25
+        f = self.font.read(notify=self.height)
+        self.height.set(linespace(f) * 1.25)
+
+        f = self.font.read(notify=self.ascent)
+        self.ascent.set(f.getMetrics().fAscent * 1.25)
+        self.descent.set(f.getMetrics().fDescent * 1.25)
 
     def paint(self):
         color = self.node.style["color"]

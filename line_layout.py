@@ -12,34 +12,52 @@ class LineLayout:
         self.previous = previous
         self.children = []
         self.width = ProtectedField()
+        self.y = ProtectedField()
+        self.x = ProtectedField()
+        self.ascent = ProtectedField()
+        self.descent = ProtectedField()
 
     def layout(self):
         self.zoom = self.parent.zoom
         self.width.copy(self.parent.width)
-        self.x = self.parent.x
+        self.x.copy(self.parent.x)
 
         if self.previous:
-            self.y = self.previous.y + self.previous.height
+            prev_y = self.previous.y.read(notify=self.y)
+            prev_height = self.previous.height.read(notify=self.y)
+            self.y.set(prev_y + prev_height)
         else:
-            self.y = self.parent.y
+            self.y.copy(self.parent.y)
 
         for word in self.children:
             word.layout()
 
         if not self.children:
-            self.height = 0
+            self.ascent.set(0)
+            self.descent.set(0)
+            self.height.set(0)
             return
 
-        max_ascent = max([-child.ascent for child in self.children])
-        baseline = self.y + max_ascent
+        self.ascent.set(
+            max([-child.ascent.read(notify=self.ascent) for child in self.children])
+        )
+        self.descent.set(
+            max([child.descent.read(notify=self.descent) for child in self.children])
+        )
 
         for child in self.children:
+            new_y = self.y.read(notify=child.y)
+            new_y += self.ascent.read(notify=child.y)
+            new_y += child.ascent.read(notify=child.y)
             if isinstance(child, TextLayout):
-                child.y = baseline + child.ascent / 1.25
+                new_y += child.ascent.read(notify=child.y) / 1.25
             else:
-                child.y = baseline + child.ascent
-        max_descent = max([child.descent for child in self.children])
-        self.height = max_ascent + max_descent
+                new_y += child.ascent.read(notify=child.y)
+            child.y.set(new_y)
+
+        max_ascent = self.ascent.read(notify=self.ascent)
+        max_descent = self.ascent.read(notify=self.descent)
+        self.height.set(max_ascent + max_descent)
 
     def paint(self):
         return []

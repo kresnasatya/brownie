@@ -21,11 +21,14 @@ class InputLayout(EmbedLayout):
         super().layout()
 
         zoom = self.zoom.read(notify=self.width)
-        self.width = dpx(INPUT_WIDTH_PX, zoom)
-        self.height = linespace(self.font)
+        self.width.set(dpx(INPUT_WIDTH_PX, zoom))
 
-        self.ascent = -self.height
-        self.descent = 0
+        font = self.font.read(notify=self.height)
+        self.height.set(linespace(font))
+
+        height = self.height.read(notify=self.ascent)
+        self.ascent.set(-height)
+        self.descent.set(0)
 
     def paint(self):
         cmds = []

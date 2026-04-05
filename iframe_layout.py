@@ -20,21 +20,25 @@ class IframeLayout(EmbedLayout):
         width_attr = self.node.attributes.get("width")
         height_attr = self.node.attributes.get("height")
 
+        zoom = self.zoom.read(notify=self.width)
         if width_attr:
-            self.width = dpx(int(width_attr) + 2, self.zoom)
+            self.width.set(dpx(int(width_attr) + 2, zoom))
         else:
-            self.width = dpx(IFRAME_WIDTH_PX + 2, self.zoom)
+            self.width.set(dpx(IFRAME_WIDTH_PX + 2, zoom))
 
+        zoom = self.zoom.read(notify=self.height)
         if height_attr:
-            self.height = dpx(int(height_attr) + 2, self.zoom)
+            self.height.set(dpx(int(height_attr) + 2, zoom))
         else:
-            self.height = dpx(IFRAME_HEIGHT_PX + 2, self.zoom)
+            self.height.set(dpx(IFRAME_HEIGHT_PX + 2, zoom))
 
         if self.node.frame and self.node.frame.loaded:
-            self.node.frame.frame_height = self.height - dpx(2, self.zoom)
-            self.node.frame.frame_width = self.width - dpx(2, self.zoom)
-        self.ascent = -self.height
-        self.descent = 0
+            self.node.frame.frame_height = self.height.get() - dpx(2, self.zoom.get())
+            self.node.frame.frame_width = self.width.get() - dpx(2, self.zoom.get())
+
+        height = self.height.read(notify=self.ascent)
+        self.ascent.set(-height)
+        self.descent.set(0)
 
     def paint(self):
         cmds = []
@@ -55,7 +59,11 @@ class IframeLayout(EmbedLayout):
             self.x, self.y, self.x + self.width, self.y + self.height
         )
         diff = dpx(1, self.zoom)
-        scroll = self.node.frame.scroll if (self.node.frame and self.node.frame.loaded) else 0
+        scroll = (
+            self.node.frame.scroll
+            if (self.node.frame and self.node.frame.loaded)
+            else 0
+        )
         offset = (self.x + diff, self.y + diff - scroll)
         cmds = [Transform(offset, rect, self.node, cmds)]
         inner_rect = skia.Rect.MakeLTRB(

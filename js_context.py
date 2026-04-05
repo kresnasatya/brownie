@@ -164,6 +164,7 @@ class JSContext:
         if isinstance(obj, IframeLayout) or isinstance(obj, ImageLayout):
             if attr == "width" or attr == "height":
                 obj.width.mark()
+                obj.height.mark()
         self.tab.set_needs_render_all_frames()
 
     def add_window(self, frame):

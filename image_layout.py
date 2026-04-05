@@ -36,9 +36,12 @@ class ImageLayout(EmbedLayout):
             self.width = dpx(image_width, self.zoom)
             self.img_height = dpx(image_height, self.zoom)
 
-        self.height = max(self.img_height, linespace(self.font))
-        self.ascent = -self.height
-        self.descent = 0
+        font = self.font.read(notify=self.height)
+        self.height.set(max(self.img_height, linespace(font)))
+
+        height = self.height.read(notify=self.ascent)
+        self.ascent.set(-height)
+        self.descent.set(0)
 
     def paint(self):
         cmds = []
