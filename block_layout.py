@@ -74,10 +74,10 @@ class BlockLayout:
         self.previous = previous
         self.frame = frame
         self.children = ProtectedField()
-        self.x = None
-        self.y = None
+        self.x = ProtectedField()
+        self.y = ProtectedField()
         self.width = ProtectedField()
-        self.height = None
+        self.height = ProtectedField()
         self.children_dirty = True
         self.zoom = ProtectedField()
         self.parent.zoom.invalidations.add(self.zoom)
@@ -86,21 +86,25 @@ class BlockLayout:
         return f"BlockLayout({self.node}, mode={self.layout_mode()})"
 
     def layout(self):
-        self.x = self.parent.x
+        self.x.copy(self.parent.x)
         self.width.copy(self.parent.width)
         self.zoom.copy(self.parent.zoom)
+
         if self.previous:
-            self.y = self.previous.y + self.previous.height
+            prev_y = self.previous.y.read(notify=self.y)
+            prev_height = self.previous.height.read(notify=self.y)
+            self.y.set(prev_y + prev_height)
         else:
-            self.y = self.parent.y
+            self.y.copy(self.parent.y)
+
         mode = self.layout_mode()
         if mode == "block":
             if self.children_dirty:
                 previous = None
-                self.children = []
+                children = []
                 for child in self.node.children:
                     next = BlockLayout(child, self, previous, self.frame)
-                    self.children.append(next)
+                    children.append(next)
                     previous = next
                 self.children.set(children)
         else:
@@ -118,7 +122,9 @@ class BlockLayout:
             child.zoom.mark()
 
         assert not self.children_dirty
-        self.height = sum([child.height for child in self.children.get()])
+        children = self.children.read(notify=self.height)
+        new_height = sum([child.height.read(notify=self.height) for child in children])
+        self.height.set(new_height)
 
     def self_rect(self):
         return skia.Rect.MakeLTRB(

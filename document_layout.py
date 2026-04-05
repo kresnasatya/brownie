@@ -10,14 +10,15 @@ class DocumentLayout:
         self.parent = None
         self.children = []
 
-        self.x = None
-        self.y = None
+        self.x = ProtectedField()
+        self.y = ProtectedField()
         self.width = ProtectedField()
-        self.height = None
+        self.height = ProtectedField()
         self.zoom = ProtectedField()
 
     def layout(self, width, zoom):
         self.zoom.set(zoom)
+        self.width.set(width - 2 * dpx(HSTEP, zoom))
 
         if not self.children:
             child = BlockLayout(self.node, self, None, self.frame)
@@ -26,11 +27,10 @@ class DocumentLayout:
         self.children = [child]
         child.zoom.mark()
 
-        self.width = self.width.set(width - 2 * dpx(HSTEP, self.zoom))
-        self.x = dpx(HSTEP, self.zoom)
-        self.y = dpx(VSTEP, self.zoom)
+        self.x.set(dpx(HSTEP, zoom))
+        self.y.set(dpx(VSTEP, zoom))
         child.layout()
-        self.height = child.height
+        self.height.copy(child.height)
 
     def should_paint(self):
         return True
