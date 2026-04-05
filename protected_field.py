@@ -1,10 +1,11 @@
 class ProtectedField:
-    def __init__(self, obj, name) -> None:
+    def __init__(self, obj, name, parent=None) -> None:
         self.obj = obj
         self.name = name
         self.value = None
         self.dirty = True
         self.invalidations = set()
+        self.parent = parent
 
     def __repr__(self) -> str:
         return "ProtectedField({}, {})".format(
@@ -15,6 +16,7 @@ class ProtectedField:
         if self.dirty:
             return
         self.dirty = True
+        self.set_ancestor_dirty_flags()
 
     def get(self):
         assert not self.dirty
@@ -36,3 +38,9 @@ class ProtectedField:
 
     def copy(self, field):
         self.set(field.read(notify=self))
+
+    def set_ancestor_dirty_flags(self):
+        parent = self.parent
+        while parent and not parent.has_dirty_descendants:
+            parent.has_dirty_descendants = True
+            parent = parent.parent

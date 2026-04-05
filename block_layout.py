@@ -73,19 +73,39 @@ class BlockLayout:
         self.parent = parent
         self.previous = previous
         self.frame = frame
-        self.children = ProtectedField(self, "children")
-        self.x = ProtectedField(self, "x")
-        self.y = ProtectedField(self, "y")
-        self.width = ProtectedField(self, "width")
-        self.height = ProtectedField(self, "height")
-        self.children_dirty = True
-        self.zoom = ProtectedField(self, "zoom")
+        self.children = ProtectedField(self, "children", self.parent)
+        self.x = ProtectedField(self, "x", self.parent)
+        self.y = ProtectedField(self, "y", self.parent)
+        self.width = ProtectedField(self, "width", self.parent)
+        self.height = ProtectedField(self, "height", self.parent)
+        self.has_dirty_descendants = False
+        self.zoom = ProtectedField(self, "zoom", self.parent)
         self.parent.zoom.invalidations.add(self.zoom)
 
     def __repr__(self):
         return f"BlockLayout({self.node}, mode={self.layout_mode()})"
 
+    def layout_needed(self):
+        if self.zoom.dirty:
+            return True
+        if self.width.dirty:
+            return True
+        if self.height.dirty:
+            return True
+        if self.x.dirty:
+            return True
+        if self.y.dirty:
+            return True
+        if self.children.dirty:
+            return True
+        if self.has_dirty_descendants:
+            return True
+        return False
+
     def layout(self):
+        if not self.layout_needed():
+            return
+
         self.x.copy(self.parent.x)
         self.width.copy(self.parent.width)
         self.zoom.copy(self.parent.zoom)
@@ -116,12 +136,11 @@ class BlockLayout:
                 self.temp_children = None
                 self.children_dirty = False
 
-        assert not self.children_dirty
         for child in self.children.get():
             child.layout()
-            child.zoom.mark()
 
-        assert not self.children_dirty
+        self.has_dirty_descendants = False
+
         children = self.children.read(notify=self.height)
         new_height = sum([child.height.read(notify=self.height) for child in children])
         self.height.set(new_height)

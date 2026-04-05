@@ -35,6 +35,7 @@ class IframeLayout(EmbedLayout):
         if self.node.frame and self.node.frame.loaded:
             self.node.frame.frame_height = self.height.get() - dpx(2, self.zoom.get())
             self.node.frame.frame_width = self.width.get() - dpx(2, self.zoom.get())
+            self.node.frame.document.width.mark()
 
         height = self.height.read(notify=self.ascent)
         self.ascent.set(-height)
