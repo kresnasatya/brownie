@@ -23,6 +23,7 @@ class URL:
             self.port = int(port)
 
     def request(self, referrer, payload=None):
+        print("[URL.request] requesting: ", str(self))
         s = socket.socket(
             family=socket.AF_INET, type=socket.SOCK_STREAM, proto=socket.IPPROTO_TCP
         )
@@ -41,9 +42,6 @@ class URL:
                     allow_cookie = self.host == referrer.host
             if allow_cookie:
                 body += "Cookie: {}\r\n".format(cookie)
-        if payload:
-            length = len(payload.encode("utf8"))
-            body += "Content-Length: {}\r\n".format(length)
         if payload:
             content_length = len(payload.encode("utf8"))
             body += "Content-Length: {}\r\n".format(content_length)
