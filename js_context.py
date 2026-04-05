@@ -6,6 +6,8 @@ from block_layout import BlockLayout
 from css_parser import CSSParser
 from dom_utils import tree_to_list
 from html_parser import HTMLParser
+from iframe_layout import IframeLayout
+from image_layout import ImageLayout
 from task import Task
 
 RUNTIME_JS = open("runtime.js").read()
@@ -158,6 +160,10 @@ class JSContext:
         self.throw_if_cross_origin(frame)
         elt = self.handle_to_node[handle]
         elt.attributes[attr] = value
+        obj = elt.layout_object
+        if isinstance(obj, IframeLayout) or isinstance(obj, ImageLayout):
+            if attr == "width" or attr == "height":
+                obj.width.mark()
         self.tab.set_needs_render_all_frames()
 
     def add_window(self, frame):

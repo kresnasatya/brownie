@@ -1,4 +1,5 @@
 from dom_utils import font
+from protected_field import ProtectedField
 
 
 class EmbedLayout:
@@ -9,15 +10,17 @@ class EmbedLayout:
         self.children = []
         self.x = None
         self.y = None
-        self.width = None
+        self.width = ProtectedField()
         self.height = None
         self.font = None
         self.parent = parent
         self.previous = previous
 
     def layout(self):
-        self.zoom = self.parent.zoom
-        self.font = font(self.node.style, self.zoom)
+        self.zoom.copy(self.parent.zoom)
+
+        zoom = self.zoom.read(notify=self.font)
+        self.font = font(self.node.style, zoom)
         if self.previous:
             space = self.previous.font.measureText(" ")
             self.x = self.previous.x + space + self.previous.width

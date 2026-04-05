@@ -20,7 +20,8 @@ class InputLayout(EmbedLayout):
     def layout(self):
         super().layout()
 
-        self.width = dpx(INPUT_WIDTH_PX, self.zoom)
+        zoom = self.zoom.read(notify=self.width)
+        self.width = dpx(INPUT_WIDTH_PX, zoom)
         self.height = linespace(self.font)
 
         self.ascent = -self.height

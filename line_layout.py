@@ -1,6 +1,7 @@
 import skia
 
 from dom_utils import paint_outline
+from protected_field import ProtectedField
 from text_layout import TextLayout
 
 
@@ -10,10 +11,11 @@ class LineLayout:
         self.parent = parent
         self.previous = previous
         self.children = []
+        self.width = ProtectedField()
 
     def layout(self):
         self.zoom = self.parent.zoom
-        self.width = self.parent.width
+        self.width.copy(self.parent.width)
         self.x = self.parent.x
 
         if self.previous:

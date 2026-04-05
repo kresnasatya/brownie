@@ -9,6 +9,7 @@ from dom_utils import (
     paint_visual_effects,
 )
 from draw_text import DrawText
+from protected_field import ProtectedField
 
 
 class TextLayout:
@@ -20,15 +21,15 @@ class TextLayout:
         self.previous = previous
         self.x = None
         self.y = None
-        self.width = None
+        self.width = ProtectedField()
         self.height = None
 
     def layout(self):
-        self.zoom = self.parent.zoom
-        self.font = font(self.node.style, self.zoom)
+        style = self.width.read(self.node.style)
+        zoom = self.width.read(self.zoom)
+        self.font = font(style, zoom)
 
-        # Do not set self.y
-        self.width = self.font.measureText(self.word)
+        self.width.set(self.font.measureText(self.word))
 
         if self.previous:
             space = self.previous.font.measureText(" ")
