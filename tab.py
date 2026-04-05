@@ -349,7 +349,7 @@ class Frame:
                 header, body = style_url.request(url)
             except:
                 continue
-            self.rules.extend(CSSParser(body.decode("utf8", "response")).parse())
+            self.rules.extend(CSSParser(body.decode("utf8", "replace")).parse())
 
         if self.js:
             self.js.discarded = True
