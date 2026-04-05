@@ -1,5 +1,6 @@
 from block_layout import BlockLayout
 from dom_utils import HEIGHT, HSTEP, VSTEP, WIDTH, dpx
+from protected_field import ProtectedField
 
 
 class DocumentLayout:
@@ -12,14 +13,17 @@ class DocumentLayout:
         self.y = None
         self.width = None
         self.height = None
+        self.zoom = ProtectedField()
 
     def layout(self, width, zoom):
-        self.zoom = zoom
+        self.zoom.set(zoom)
+
         if not self.children:
             child = BlockLayout(self.node, self, None, self.frame)
         else:
             child = self.children[0]
         self.children = [child]
+        child.zoom.mark()
 
         self.width = width - 2 * dpx(HSTEP, self.zoom)
         self.x = dpx(HSTEP, self.zoom)

@@ -79,6 +79,8 @@ class BlockLayout:
         self.width = None
         self.height = None
         self.children_dirty = True
+        self.zoom = ProtectedField()
+        self.parent.zoom.invalidations.add(self.zoom)
 
     def __repr__(self):
         return f"BlockLayout({self.node}, mode={self.layout_mode()})"
@@ -86,7 +88,7 @@ class BlockLayout:
     def layout(self):
         self.x = self.parent.x
         self.width = self.parent.width
-        self.zoom = self.parent.zoom
+        self.zoom.copy(self.parent.zoom)
         if self.previous:
             self.y = self.previous.y + self.previous.height
         else:
@@ -110,6 +112,7 @@ class BlockLayout:
         assert not self.children_dirty
         for child in self.children.get():
             child.layout()
+            child.zoom.mark()
 
         assert not self.children_dirty
         self.height = sum([child.height for child in self.children.get()])
@@ -197,28 +200,31 @@ class BlockLayout:
                     self.recurse(child)
 
     def iframe(self, node):
+        zoom = self.zoom.read(notify=self.children)
         if "width" in self.node.attributes:
-            w = dpx(int(self.node.attributes["width"]), self.zoom)
+            w = dpx(int(self.node.attributes["width"]), zoom)
         else:
-            w = IFRAME_WIDTH_PX + dpx(2, self.zoom)
+            w = IFRAME_WIDTH_PX + dpx(2, zoom)
         self.add_inline_child(node, w, IframeLayout, frame=self.frame)
 
     def input(self, node):
-        w = dpx(INPUT_WIDTH_PX, self.zoom)
+        zoom = self.zoom.read(notify=self.children)
+        w = dpx(INPUT_WIDTH_PX, zoom)
         self.add_inline_child(node, w, InputLayout, frame=self.frame)
 
     def image(self, node):
-        w = dpx(node.image.width(), self.zoom)
+        zoom = self.zoom.read(notify=self.children)
+        w = dpx(node.image.width(), zoom)
         if "width" in node.attributes:
-            w = dpx(int(node.attributes["width"]), self.zoom)
+            w = dpx(int(node.attributes["width"]), zoom)
         self.add_inline_child(node, w, ImageLayout, frame=self.frame)
 
-    def layout_intermediate(self):
-        previous = None
-        for child in self.node.children:
-            next = BlockLayout(child, self, previous, self.frame)
-            self.children.append(next)
-            previous = next
+    # def layout_intermediate(self):
+    #     previous = None
+    #     for child in self.node.children:
+    #         next = BlockLayout(child, self, previous, self.frame)
+    #         self.children.append(next)
+    #         previous = next
 
     def layout_mode(self):
         if isinstance(self.node, Text):

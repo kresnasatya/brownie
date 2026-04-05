@@ -2,6 +2,7 @@ class ProtectedField:
     def __init__(self) -> None:
         self.value = None
         self.dirty = True
+        self.invalidations = set()
 
     def mark(self):
         if self.dirty:
@@ -13,5 +14,17 @@ class ProtectedField:
         return self.value
 
     def set(self, value):
+        self.notify()
         self.value = value
         self.dirty = False
+
+    def notify(self):
+        for field in self.invalidations:
+            field.mark()
+
+    def read(self, notify):
+        self.invalidations.add(notify)
+        return self.get()
+
+    def copy(self, field):
+        self.set(field.read(notify=self))
