@@ -528,7 +528,7 @@ class Frame:
             if obj:
                 while not isinstance(obj, BlockLayout):
                     obj = obj.parent
-                obj.children_dirty = True
+                obj.children.mark()
             self.set_needs_render()
 
     def scrolldown(self):

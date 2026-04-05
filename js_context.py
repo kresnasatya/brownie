@@ -100,7 +100,7 @@ class JSContext:
         if obj:
             while not isinstance(obj, BlockLayout):
                 obj = obj.parent
-            obj.children_dirty = True
+            obj.children.mark()
         frame.set_needs_render()
 
     def XMLHttpRequest_send(self, method, url, body, isasync, handle, window_id):

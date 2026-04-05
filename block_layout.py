@@ -19,6 +19,7 @@ from iframe_layout import IFRAME_WIDTH_PX, IframeLayout
 from image_layout import ImageLayout
 from input_layout import InputLayout
 from line_layout import LineLayout
+from protected_field import ProtectedField
 from text import Text
 from text_layout import TextLayout
 
@@ -72,11 +73,12 @@ class BlockLayout:
         self.parent = parent
         self.previous = previous
         self.frame = frame
-        self.children = []
+        self.children = ProtectedField()
         self.x = None
         self.y = None
         self.width = None
         self.height = None
+        self.children_dirty = True
 
     def __repr__(self):
         return f"BlockLayout({self.node}, mode={self.layout_mode()})"
@@ -98,16 +100,19 @@ class BlockLayout:
                     next = BlockLayout(child, self, previous, self.frame)
                     self.children.append(next)
                     previous = next
-                self.children_dirty = False
+                self.children.set(children)
         else:
             self.children = []
             self.new_line()
             self.recurse(self.node)
+            self.children_dirty = False
 
-        for child in self.children:
+        assert not self.children_dirty
+        for child in self.children.get():
             child.layout()
 
-        self.height = sum([child.height for child in self.children])
+        assert not self.children_dirty
+        self.height = sum([child.height for child in self.children.get()])
 
     def self_rect(self):
         return skia.Rect.MakeLTRB(
@@ -118,6 +123,7 @@ class BlockLayout:
         )
 
     def paint(self):
+        assert not self.children_dirty
         cmds = []
         bgcolor = self.node.style.get("background-color", "transparent")
         if bgcolor != "transparent":
