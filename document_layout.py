@@ -9,9 +9,10 @@ class DocumentLayout:
         self.frame = frame
         self.parent = None
         self.children = []
+
         self.x = None
         self.y = None
-        self.width = None
+        self.width = ProtectedField()
         self.height = None
         self.zoom = ProtectedField()
 
@@ -25,7 +26,7 @@ class DocumentLayout:
         self.children = [child]
         child.zoom.mark()
 
-        self.width = width - 2 * dpx(HSTEP, self.zoom)
+        self.width = self.width.set(width - 2 * dpx(HSTEP, self.zoom))
         self.x = dpx(HSTEP, self.zoom)
         self.y = dpx(VSTEP, self.zoom)
         child.layout()

@@ -76,7 +76,7 @@ class BlockLayout:
         self.children = ProtectedField()
         self.x = None
         self.y = None
-        self.width = None
+        self.width = ProtectedField()
         self.height = None
         self.children_dirty = True
         self.zoom = ProtectedField()
@@ -87,7 +87,7 @@ class BlockLayout:
 
     def layout(self):
         self.x = self.parent.x
-        self.width = self.parent.width
+        self.width.copy(self.parent.width)
         self.zoom.copy(self.parent.zoom)
         if self.previous:
             self.y = self.previous.y + self.previous.height
@@ -104,10 +104,13 @@ class BlockLayout:
                     previous = next
                 self.children.set(children)
         else:
-            self.children = []
-            self.new_line()
-            self.recurse(self.node)
-            self.children_dirty = False
+            if self.children.dirty:
+                self.temp_children = []
+                self.new_line()
+                self.recurse(self.node)
+                self.children.set(self.temp_children)
+                self.temp_children = None
+                self.children_dirty = False
 
         assert not self.children_dirty
         for child in self.children.get():
@@ -128,22 +131,28 @@ class BlockLayout:
     def paint(self):
         assert not self.children_dirty
         cmds = []
-        bgcolor = self.node.style.get("background-color", "transparent")
+        bgcolor = self.node.style["background-color"].get()
         if bgcolor != "transparent":
-            radius = float(self.node.style.get("border-radius", "0px")[:-2])
+            radius = (
+                float(self.node.style["border-radius"].get()[:-2]),
+                self.zoom.get(),
+            )
             cmds.append(DrawRRect(self.self_rect(), radius, bgcolor))
         return cmds
 
     def word(self, node, word):
-        node_font = font(node.style, self.zoom)
+        zoom = self.zoom.read(notify=self.children)
+        style = self.children.read(node.style)
+        node_font = font(style, zoom)
         w = node_font.measureText(word)
         self.add_inline_child(node, w, TextLayout, word)
 
     def new_line(self):
+        self.previous_word = None
         self.cursor_x = 0
-        last_line = self.children[-1] if self.children else None
+        last_line = self.temp_children[-1] if self.temp_children else None
         new_line = LineLayout(self.node, self, last_line)
-        self.children.append(new_line)
+        self.temp_children.append(new_line)
 
     def flush(self):
         pass
@@ -261,9 +270,10 @@ class BlockLayout:
         return cmds
 
     def add_inline_child(self, node, w, child_class, word=None, frame=None):
-        if self.cursor_x + w > self.x + self.width:
+        width = self.width.read(notify=self.children)
+        if self.cursor_x + w > width:
             self.new_line()
-        line = self.children[-1]
+        line = self.temp_children[-1]
         previous_word = line.children[-1] if line.children else None
         if word:
             child = child_class(node, word, line, previous_word)
@@ -272,4 +282,5 @@ class BlockLayout:
         else:
             child = child_class(node, line, previous_word)
         line.children.append(child)
-        self.cursor_x += w + font(node.style, self.zoom).measureText(" ")
+        zoom = self.zoom.read(notify=self.children)
+        self.cursor_x += w + font(node.style, zoom).measureText(" ")

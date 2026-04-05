@@ -20,6 +20,7 @@ from draw_outline import DrawOutline
 from draw_rrect import DrawRRect
 from element import Element
 from numeric_animation import NumericAnimation
+from protected_field import ProtectedField
 from transform import Transform, map_translation
 
 WIDTH, HEIGHT = 800, 600
@@ -63,6 +64,9 @@ def print_tree(node, indent=0):
 
 def tree_to_list(tree, list):
     list.append(tree)
+    children = tree.children
+    if isinstance(children, ProtectedField):
+        children = children.get()
     for child in tree.children:
         tree_to_list(child, list)
     return list
@@ -78,13 +82,15 @@ INHERITED_PROPERTIES = {
 
 def style(node, rules, frame):
     old_style = node.style
+    new_style = {}
 
-    node.style = {}
+    node.style.set(new_style)
     for property, default_value in INHERITED_PROPERTIES.items():
         if node.parent:
-            node.style[property] = node.parent.style[property]
+            parent_style = node.parent.style.read(notify=node.style)
+            new_style[property] = parent_style[property]
         else:
-            node.style[property] = default_value
+            new_style[property] = default_value
     for media, selector, body in rules:
         if media:
             if (media == "dark") != frame.tab.dark_mode:
@@ -92,28 +98,28 @@ def style(node, rules, frame):
         if not selector.matches(node):
             continue
         for property, value in body.items():
-            node.style[property] = value
+            new_style[property] = value
     if isinstance(node, Element) and "style" in node.attributes:
         pairs = CSSParser(node.attributes["style"]).body()
         for property, value in pairs.items():
-            node.style[property] = value
-    if node.style["font-size"].endswith("%"):
+            new_style[property] = value
+    if new_style["font-size"].endswith("%"):
         if node.parent:
             parent_font_size = node.parent.style["font-size"]
         else:
             parent_font_size = INHERITED_PROPERTIES["font-size"]
-        node_pct = float(node.style["font-size"][:-1]) / 100
+        node_pct = float(new_style["font-size"][:-1]) / 100
         parent_px = float(parent_font_size[:-2])
-        node.style["font-size"] = str(node_pct * parent_px) + "px"
+        new_style["font-size"] = str(node_pct * parent_px) + "px"
 
     if old_style:
-        transitions = diff_styles(old_style, node.style)
+        transitions = diff_styles(old_style, new_style)
         for property, (old_value, new_value, num_frames) in transitions.items():
             if property == "opacity":
                 frame.set_needs_render()
                 animation = NumericAnimation(old_value, new_value, num_frames)
                 node.animations[property] = animation
-                node.style[property] = animation.animate()
+                new_style[property] = animation.animate()
 
     for child in node.children:
         style(child, rules, frame)

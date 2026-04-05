@@ -150,6 +150,7 @@ class JSContext:
         self.throw_if_cross_origin(frame)
         elt = self.handle_to_node[handle]
         elt.attributes["style"] = s
+        elt.style.mark()
         frame.set_needs_render()
 
     def setAttribute(self, handle, attr, value, window_id):

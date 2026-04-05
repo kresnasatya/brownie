@@ -1,3 +1,6 @@
+from protected_field import ProtectedField
+
+
 class Element:
     def __init__(self, tag, attributes, parent):
         self.tag = tag
@@ -5,7 +8,7 @@ class Element:
         self.children = []
         self.parent = parent
         self.is_focused = False
-        self.style = {}
+        self.style = ProtectedField()
         self.animations = {}
         self.layout_object = None
 
