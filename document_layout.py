@@ -10,11 +10,11 @@ class DocumentLayout:
         self.parent = None
         self.children = []
 
-        self.x = ProtectedField(self, "x")
-        self.y = ProtectedField(self, "y")
-        self.width = ProtectedField(self, "width")
+        self.x = ProtectedField(self, "x", None, [])
+        self.y = ProtectedField(self, "y", None, [])
+        self.width = ProtectedField(self, "width", None, [])
         self.height = ProtectedField(self, "height")
-        self.zoom = ProtectedField(self, "zoom")
+        self.zoom = ProtectedField(self, "zoom", None, [])
 
     def layout(self, width, zoom):
         self.zoom.set(zoom)
@@ -22,6 +22,7 @@ class DocumentLayout:
 
         if not self.children:
             child = BlockLayout(self.node, self, None, self.frame)
+            self.height.set_dependencies([child.height])
         else:
             child = self.children[0]
         self.children = [child]

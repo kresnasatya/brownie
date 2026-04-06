@@ -1,7 +1,3 @@
-from dom_utils import CSS_PROPERTIES
-from protected_field import ProtectedField
-
-
 class Element:
     def __init__(self, tag, attributes, parent):
         self.tag = tag
@@ -9,9 +5,7 @@ class Element:
         self.children = []
         self.parent = parent
         self.is_focused = False
-        self.style = dict(
-            [(property, ProtectedField(self, property)) for property in CSS_PROPERTIES]
-        )
+        self.style = None
         self.animations = {}
         self.layout_object = None
 

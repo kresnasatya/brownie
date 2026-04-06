@@ -1,11 +1,15 @@
 class ProtectedField:
-    def __init__(self, obj, name, parent=None) -> None:
+    def __init__(self, obj, name, parent=None, dependencies=None) -> None:
         self.obj = obj
         self.name = name
         self.value = None
         self.dirty = True
         self.invalidations = set()
         self.parent = parent
+        self.frozen_dependencies = dependencies != None
+        if dependencies != None:
+            for dependency in dependencies:
+                dependency.invalidations.add(self)
 
     def __repr__(self) -> str:
         return "ProtectedField({}, {})".format(
@@ -33,7 +37,10 @@ class ProtectedField:
             field.mark()
 
     def read(self, notify):
-        self.invalidations.add(notify)
+        if notify.frozen_dependencies:
+            assert notify in self.invalidations
+        else:
+            self.invalidations.add(notify)
         return self.get()
 
     def copy(self, field):
@@ -44,3 +51,8 @@ class ProtectedField:
         while parent and not parent.has_dirty_descendants:
             parent.has_dirty_descendants = True
             parent = parent.parent
+
+    def set_dependencies(self, dependencies):
+        for dependency in dependencies:
+            dependency.invalidations.add(self)
+        self.frozen_dependencies = True

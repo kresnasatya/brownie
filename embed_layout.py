@@ -8,14 +8,34 @@ class EmbedLayout:
         self.frame = frame
         node.layout_object = self
         self.children = []
-        self.x = ProtectedField(self, "x")
-        self.y = ProtectedField(self, "y")
-        self.width = ProtectedField(self, "width")
-        self.height = ProtectedField(self, "height")
-        self.font = ProtectedField(self, "font")
-        self.zoom = ProtectedField(self, "zoom")
+        self.width = ProtectedField(self, "width", self.parent, [self.zoom])
+        self.height = ProtectedField(
+            self, "height", self.parent, [self.zoom, self.font, self.width]
+        )
+        self.ascent = ProtectedField(self, "ascent", self.parent, [self.height])
+        self.descent = ProtectedField(self, "descent", self.parent, [])
+        self.font = ProtectedField(
+            self,
+            "font",
+            self.parent,
+            [
+                self.zoom,
+                self.node.style["font-weight"],
+                self.node.style["font-style"],
+                self.node.style["font-size"],
+            ],
+        )
+        self.zoom = ProtectedField(self, "zoom", self.parent, [self.parent.zoom])
         self.parent = parent
         self.previous = previous
+        if self.previous:
+            x_dependencies = [self.previous.x, self.previous.font, self.previous.width]
+        else:
+            x_dependencies = [self.parent.x]
+        self.x = ProtectedField(self, "x", self.parent, x_dependencies)
+        self.y = ProtectedField(
+            self, "y", self.parent, [self.ascent, self.parent.y, self.parent.ascent]
+        )
 
     def layout(self):
         self.zoom.copy(self.parent.zoom)

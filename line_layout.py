@@ -14,10 +14,16 @@ class LineLayout:
         self.width = ProtectedField(self, "width")
         self.y = ProtectedField(self, "y")
         self.x = ProtectedField(self, "x")
-        self.ascent = ProtectedField(self, "ascent")
-        self.descent = ProtectedField(self, "descent")
+        self.initialized_fields = False
+        self.ascent = ProtectedField(self, "ascent", self.parent)
+        self.descent = ProtectedField(self, "descent", self.parent)
 
     def layout(self):
+        if not self.initialized_fields:
+            self.ascent.set_dependencies([child.ascent for child in self.children])
+            self.descent.set_dependencies([child.descent for child in self.children])
+            self.initialized_fields = True
+
         self.zoom = self.parent.zoom
         self.width.copy(self.parent.width)
         self.x.copy(self.parent.x)

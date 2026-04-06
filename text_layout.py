@@ -19,14 +19,30 @@ class TextLayout:
         self.children = []
         self.parent = parent
         self.previous = previous
-        self.x = ProtectedField(self, "x")
-        self.y = ProtectedField(self, "y")
-        self.width = ProtectedField(self, "width")
-        self.height = ProtectedField(self, "height")
-        self.font = ProtectedField(self, "font")
-        self.ascent = ProtectedField(self, "ascent")
-        self.descent = ProtectedField(self, "descent")
-        self.zoom = ProtectedField(self, "zoom")
+        self.width = ProtectedField(self, "width", self.parent, [self.font])
+        self.height = ProtectedField(self, "height", self.parent, [self.font])
+        self.font = ProtectedField(
+            self,
+            "font",
+            self.parent,
+            [
+                self.zoom,
+                self.node.style["font-weight"],
+                self.node.style["font-style"],
+                self.node.style["font-size"],
+            ],
+        )
+        self.ascent = ProtectedField(self, "ascent", self.parent, [self.font])
+        self.descent = ProtectedField(self, "descent", self.parent, [self.font])
+        self.zoom = ProtectedField(self, "zoom", self.parent, [self.parent.zoom])
+        if self.previous:
+            x_dependencies = [self.previous.x, self.previous.font, self.previous.width]
+        else:
+            x_dependencies = [self.parent.x]
+        self.x = ProtectedField(self, "x", self.parent, x_dependencies)
+        self.y = ProtectedField(
+            self, "y", self.parent, [self.ascent, self.parent.y, self.parent.ascent]
+        )
 
     def layout(self):
         zoom = self.zoom.read(notify=self.font)

@@ -97,6 +97,9 @@ CSS_PROPERTIES = {
 
 
 def style(node, rules, frame):
+    if not node.style:
+        init_style(node)
+
     needs_style = any([field.dirty for field in node.style.values()])
     if needs_style:
         old_style = dict(
@@ -148,6 +151,25 @@ def style(node, rules, frame):
 
     for child in node.children:
         style(child, rules, frame)
+
+
+def init_style(node):
+    node.style = dict(
+        [
+            (
+                property,
+                ProtectedField(
+                    node,
+                    property,
+                    None,
+                    [node.parent.style[property]]
+                    if node.parent and property in INHERITED_PROPERTIES
+                    else [],
+                ),
+            )
+            for property in CSS_PROPERTIES
+        ]
+    )
 
 
 def cascade_priority(rule):

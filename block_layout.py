@@ -75,7 +75,11 @@ class BlockLayout:
         self.frame = frame
         self.children = ProtectedField(self, "children", self.parent)
         self.x = ProtectedField(self, "x", self.parent)
-        self.y = ProtectedField(self, "y", self.parent)
+        if self.previous:
+            y_dependencies = [self.previous.y, self.previous.height]
+        else:
+            y_dependencies = [self.parent.y]
+        self.y = ProtectedField(self, "y", self.parent, y_dependencies)
         self.width = ProtectedField(self, "width", self.parent)
         self.height = ProtectedField(self, "height", self.parent)
         self.has_dirty_descendants = False
@@ -127,14 +131,21 @@ class BlockLayout:
                     children.append(next)
                     previous = next
                 self.children.set(children)
+
+                height_dependencies = [child.height for child in children]
+                height_dependencies.append(self.children)
+                self.height.set_dependencies(height_dependencies)
         else:
             if self.children.dirty:
                 self.temp_children = []
                 self.new_line()
                 self.recurse(self.node)
                 self.children.set(self.temp_children)
+
+                height_dependencies = [child.height for child in self.temp_children]
+                height_dependencies.append(self.children)
+                self.height.set_dependencies(height_dependencies)
                 self.temp_children = None
-                self.children_dirty = False
 
         for child in self.children.get():
             child.layout()
