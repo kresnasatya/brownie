@@ -95,12 +95,17 @@ class AccessibilityNode:
         bounds = []
         while not inline.layout_object:
             inline = inline.parent
-        for line in inline.layout_object.children:
+        for line in inline.layout_object.children.get():
             line_bounds = skia.Rect.MakeEmpty()
             for child in line.children:
                 if child.node.parent == self.node:
                     line_bounds.join(
-                        skia.Rect.MakeXYWH(child.x, child.y, child.width, child.height)
+                        skia.Rect.MakeXYWH(
+                            child.x.get(),
+                            child.y.get(),
+                            child.width.get(),
+                            child.height.get(),
+                        )
                     )
             bounds.append(line_bounds)
         return bounds

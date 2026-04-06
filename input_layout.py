@@ -18,7 +18,10 @@ class InputLayout(EmbedLayout):
         super().__init__(node, parent, previous, frame)
 
     def layout(self):
-        super().layout()
+        if not self.layout_needed():
+            return
+
+        EmbedLayout.layout(self)
 
         zoom = self.zoom.read(notify=self.width)
         self.width.set(dpx(INPUT_WIDTH_PX, zoom))
@@ -32,9 +35,9 @@ class InputLayout(EmbedLayout):
 
     def paint(self):
         cmds = []
-        bgcolor = self.node.style.get("background-color", "transparent")
+        bgcolor = self.node.style["background-color"].get()
         if bgcolor != "transparent":
-            radius = float(self.node.style.get("border-radius", "0px")[:-2])
+            radius = float(self.node.style["border-radius"].get()[:-2])
             cmds.append(DrawRRect(self.self_rect(), radius, bgcolor))
         text = ""
         if self.node.tag == "input":
@@ -44,19 +47,19 @@ class InputLayout(EmbedLayout):
                 text = self.node.children[0].text
             else:
                 print("Ignoring HTML contents inside button")
-        color = self.node.style["color"]
-        cmds.append(DrawText(self.x, self.y, text, self.font, color))
+        color = self.node.style["color"].get()
+        cmds.append(DrawText(self.x.get(), self.y.get(), text, self.font.get(), color))
 
         if self.node.is_focused and self.node.tag == "input":
-            cmds.append(DrawCursor(self, self.font.measureText(text)))
+            cmds.append(DrawCursor(self, self.font.get().measureText(text)))
         return cmds
 
     def self_rect(self):
         return skia.Rect.MakeLTRB(
-            l=self.x,
-            t=self.y,
-            r=self.x + self.width,
-            b=self.y + self.height,
+            l=self.x.get(),
+            t=self.y.get(),
+            r=self.x.get() + self.width.get(),
+            b=self.y.get() + self.height.get(),
         )
 
     def paint_effects(self, cmds):

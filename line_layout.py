@@ -1,6 +1,6 @@
 import skia
 
-from dom_utils import paint_outline
+from dom_utils import paint_outline, parse_outline
 from protected_field import ProtectedField
 from text_layout import TextLayout
 
@@ -11,12 +11,41 @@ class LineLayout:
         self.parent = parent
         self.previous = previous
         self.children = []
-        self.width = ProtectedField(self, "width")
-        self.y = ProtectedField(self, "y")
-        self.x = ProtectedField(self, "x")
+        self.zoom = ProtectedField(self, "zoom", self.parent, [self.parent.zoom])
+        self.width = ProtectedField(self, "width", self.parent, [self.parent.width])
         self.initialized_fields = False
         self.ascent = ProtectedField(self, "ascent", self.parent)
         self.descent = ProtectedField(self, "descent", self.parent)
+        self.height = ProtectedField(
+            self, "height", self.parent, [self.ascent, self.descent]
+        )
+        if self.previous:
+            y_dependencies = [self.previous.y, self.previous.height]
+        else:
+            y_dependencies = [self.parent.y]
+        self.y = ProtectedField(self, "y", self.parent, y_dependencies)
+        self.x = ProtectedField(self, "x", self.parent, [self.parent.x])
+
+        self.has_dirty_descendants = True
+
+    def layout_needed(self):
+        if self.zoom.dirty:
+            return True
+        if self.width.dirty:
+            return True
+        if self.height.dirty:
+            return True
+        if self.x.dirty:
+            return True
+        if self.y.dirty:
+            return True
+        if self.ascent.dirty:
+            return True
+        if self.descent.dirty:
+            return True
+        if self.has_dirty_descendants:
+            return True
+        return False
 
     def layout(self):
         if not self.initialized_fields:
@@ -24,7 +53,10 @@ class LineLayout:
             self.descent.set_dependencies([child.descent for child in self.children])
             self.initialized_fields = True
 
-        self.zoom = self.parent.zoom
+        if not self.layout_needed():
+            return
+
+        self.zoom.copy(self.parent.zoom)
         self.width.copy(self.parent.width)
         self.x.copy(self.parent.x)
 
@@ -42,6 +74,7 @@ class LineLayout:
             self.ascent.set(0)
             self.descent.set(0)
             self.height.set(0)
+            self.has_dirty_descendants = False
             return
 
         self.ascent.set(
@@ -54,16 +87,18 @@ class LineLayout:
         for child in self.children:
             new_y = self.y.read(notify=child.y)
             new_y += self.ascent.read(notify=child.y)
-            new_y += child.ascent.read(notify=child.y)
             if isinstance(child, TextLayout):
                 new_y += child.ascent.read(notify=child.y) / 1.25
             else:
                 new_y += child.ascent.read(notify=child.y)
             child.y.set(new_y)
 
-        max_ascent = self.ascent.read(notify=self.ascent)
-        max_descent = self.ascent.read(notify=self.descent)
+        max_ascent = self.ascent.get()
+        max_descent = self.ascent.get()
+
         self.height.set(max_ascent + max_descent)
+
+        self.has_dirty_descendants = False
 
     def paint(self):
         return []
@@ -75,9 +110,11 @@ class LineLayout:
         outline_rect = skia.Rect.MakeEmpty()
         outline_node = None
         for child in self.children:
-            if child.node.parent.is_focused:
+            child_outline = parse_outline(child.node.parent.style["outline"].get())
+            if child_outline:
                 outline_rect.join(child.self_rect())
                 outline_node = child.node.parent
+
         if outline_node:
-            paint_outline(outline_node, cmds, outline_rect, self.zoom)
+            paint_outline(outline_node, cmds, outline_rect, self.zoom.get())
         return cmds

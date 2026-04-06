@@ -20,8 +20,10 @@ from draw_outline import DrawOutline
 from draw_rrect import DrawRRect
 from element import Element
 from numeric_animation import NumericAnimation
+from constants import CSS_PROPERTIES
 from protected_field import ProtectedField
 from transform import Transform, map_translation
+from visual_effect import VisualEffect
 
 WIDTH, HEIGHT = 800, 600
 HSTEP, VSTEP = 13, 18
@@ -58,6 +60,9 @@ def linespace(font):
 
 def print_tree(node, indent=0):
     print(" " * indent, node)
+    children = node.children
+    if isinstance(children, ProtectedField):
+        children = children.get()
     for child in node.children:
         print_tree(child, indent + 2)
 
@@ -67,7 +72,7 @@ def tree_to_list(tree, list):
     children = tree.children
     if isinstance(children, ProtectedField):
         children = children.get()
-    for child in tree.children:
+    for child in children:
         tree_to_list(child, list)
     return list
 
@@ -79,21 +84,7 @@ INHERITED_PROPERTIES = {
     "color": "black",
 }
 
-CSS_PROPERTIES = {
-    "font-size": "inherit",
-    "font-weight": "inherit",
-    "font-style": "inherit",
-    "color": "inherit",
-    "opacity": "1.0",
-    "transition": "",
-    "transform": "none",
-    "mix-blend-mode": None,
-    "border-radius": "0px",
-    "overflow": "visible",
-    "outline": "none",
-    "background-color": "transparent",
-    "image-rendering": "auto",
-}
+
 
 
 def style(node, rules, frame):
@@ -107,7 +98,6 @@ def style(node, rules, frame):
         )
         new_style = CSS_PROPERTIES.copy()
 
-        node.style.set(new_style)
         for property, default_value in INHERITED_PROPERTIES.items():
             if node.parent:
                 parent_field = node.parent.style[property]
@@ -177,7 +167,7 @@ def cascade_priority(rule):
     return selector.priority
 
 
-def paint_visual_effects(node, cmds, rect):
+def paint_visual_effects(node, cmds, rect) -> list[VisualEffect]:
     opacity = float(node.style["opacity"].get())
     blend_mode = node.style["mix-blend-mode"].get()
     translation = parse_transform(node.style["transform"].get())
@@ -251,10 +241,12 @@ def parse_transform(transform_str):
 
 
 def absolute_bounds_for_obj(obj):
-    rect = skia.Rect.MakeXYWH(obj.x, obj.y, obj.width, obj.height)
+    rect = skia.Rect.MakeXYWH(
+        obj.x.get(), obj.y.get(), obj.width.get(), obj.height.get()
+    )
     cur = obj.node
     while cur:
-        rect = map_translation(rect, parse_transform(cur.style.get("transform", "")))
+        rect = map_translation(rect, parse_transform(cur.style["transform"].get()))
         cur = cur.parent
     return rect
 
@@ -281,7 +273,7 @@ def dpx(css_px, zoom):
 
 
 def is_focusable(node):
-    if get_tabindex(node) < 0:
+    if get_tabindex(node) <= 0:
         return False
     elif "tabindex" in node.attributes:
         return True
@@ -297,7 +289,7 @@ def get_tabindex(node):
 
 
 def paint_outline(node, cmds, rect, zoom):
-    outline = parse_outline(node.style.get("outline"))
+    outline = parse_outline(node.style["outline"].get())
     if not outline:
         return
     thickness, color = outline

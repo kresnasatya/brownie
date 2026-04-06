@@ -1,13 +1,16 @@
 from block_layout import BlockLayout
 from dom_utils import HEIGHT, HSTEP, VSTEP, WIDTH, dpx
 from protected_field import ProtectedField
+from transform import Transform
 
 
 class DocumentLayout:
     def __init__(self, node, frame=None):
         self.node = node
         self.frame = frame
+        node.layout_object = self
         self.parent = None
+        self.previous = None
         self.children = []
 
         self.x = ProtectedField(self, "x", None, [])
@@ -16,7 +19,27 @@ class DocumentLayout:
         self.height = ProtectedField(self, "height")
         self.zoom = ProtectedField(self, "zoom", None, [])
 
+        self.has_dirty_descendants = True
+
+    def layout_needed(self):
+        if self.zoom.dirty:
+            return True
+        if self.width.dirty:
+            return True
+        if self.height.dirty:
+            return True
+        if self.x.dirty:
+            return True
+        if self.y.dirty:
+            return True
+        if self.has_dirty_descendants:
+            return True
+        return False
+
     def layout(self, width, zoom):
+        if not self.layout_needed():
+            return
+
         self.zoom.set(zoom)
         self.width.set(width - 2 * dpx(HSTEP, zoom))
 
@@ -26,11 +49,13 @@ class DocumentLayout:
         else:
             child = self.children[0]
         self.children = [child]
-        child.zoom.mark()
 
         self.x.set(dpx(HSTEP, zoom))
         self.y.set(dpx(VSTEP, zoom))
+
         child.layout()
+        self.has_dirty_descendants = False
+
         self.height.copy(child.height)
 
     def should_paint(self):
@@ -43,4 +68,12 @@ class DocumentLayout:
         return "DocumentLayout()"
 
     def paint_effects(self, cmds):
+        if self.frame != self.frame.tab.root_frame and self.frame.scroll != 0:
+            rect = skia.Rect.MakeLTRB(
+                self.x.get(),
+                self.y.get(),
+                self.x.get() + self.width.get(),
+                self.y.get() + self.height.get(),
+            )
+            cmds = [Transform((0, -self.frame.scroll), rect, self.node, cmds)]
         return cmds

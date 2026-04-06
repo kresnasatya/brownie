@@ -19,8 +19,7 @@ class TextLayout:
         self.children = []
         self.parent = parent
         self.previous = previous
-        self.width = ProtectedField(self, "width", self.parent, [self.font])
-        self.height = ProtectedField(self, "height", self.parent, [self.font])
+        self.zoom = ProtectedField(self, "zoom", self.parent, [self.parent.zoom])
         self.font = ProtectedField(
             self,
             "font",
@@ -32,9 +31,10 @@ class TextLayout:
                 self.node.style["font-size"],
             ],
         )
+        self.width = ProtectedField(self, "width", self.parent, [self.font])
+        self.height = ProtectedField(self, "height", self.parent, [self.font])
         self.ascent = ProtectedField(self, "ascent", self.parent, [self.font])
         self.descent = ProtectedField(self, "descent", self.parent, [self.font])
-        self.zoom = ProtectedField(self, "zoom", self.parent, [self.parent.zoom])
         if self.previous:
             x_dependencies = [self.previous.x, self.previous.font, self.previous.width]
         else:
@@ -44,12 +44,49 @@ class TextLayout:
             self, "y", self.parent, [self.ascent, self.parent.y, self.parent.ascent]
         )
 
+        self.has_dirty_descendants = True
+
+    def layout_needed(self):
+        if self.zoom.dirty:
+            return True
+        if self.width.dirty:
+            return True
+        if self.height.dirty:
+            return True
+        if self.x.dirty:
+            return True
+        if self.y.dirty:
+            return True
+        if self.ascent.dirty:
+            return True
+        if self.descent.dirty:
+            return True
+        if self.font.dirty:
+            return True
+        if self.has_dirty_descendants:
+            return True
+        return False
+
     def layout(self):
+        if not self.layout_needed():
+            return
+
+        self.zoom.copy(self.parent.zoom)
+
         zoom = self.zoom.read(notify=self.font)
         self.font.set(font(self.node.style, zoom, notify=self.font))
 
         f = self.font.read(notify=self.width)
         self.width.set(f.measureText(self.word))
+
+        f = self.font.read(notify=self.ascent)
+        self.ascent.set(f.getMetrics().fAscent * 1.25)
+
+        f = self.font.read(notify=self.descent)
+        self.descent.set(f.getMetrics().fDescent * 1.25)
+
+        f = self.font.read(notify=self.height)
+        self.height.set(linespace(f) * 1.25)
 
         if self.previous:
             prev_x = self.previous.x.read(notify=self.x)
@@ -59,26 +96,31 @@ class TextLayout:
         else:
             self.x.copy(self.parent.x)
 
-        f = self.font.read(notify=self.height)
-        self.height.set(linespace(f) * 1.25)
-
-        f = self.font.read(notify=self.ascent)
-        self.ascent.set(f.getMetrics().fAscent * 1.25)
-        self.descent.set(f.getMetrics().fDescent * 1.25)
+        self.has_dirty_descendants = False
 
     def paint(self):
-        color = self.node.style["color"]
-        return [DrawText(self.x, self.y, self.word, self.font, color)]
+        cmds = []
+        leading = self.height.get() / 1.25 * 0.25 / 2
+        color = self.node.style["color"].get()
+        cmds.append(
+            DrawText(
+                self.x.get(), self.y.get() + leading, self.word, self.font.get(), color
+            )
+        )
+        return cmds
 
     def should_paint(self):
         return True
 
     def self_rect(self):
         return skia.Rect.MakeLTRB(
-            self.x, self.y, self.x + self.width, self.y + self.height
+            self.x.get(),
+            self.y.get(),
+            self.x.get() + self.width.get(),
+            self.y.get() + self.height.get(),
         )
 
     def paint_effects(self, cmds):
         cmds = paint_visual_effects(self.node, cmds, self.self_rect())
-        paint_outline(self.node, cmds, self.self_rect(), self.zoom)
+        paint_outline(self.node, cmds, self.self_rect(), self.zoom.get())
         return cmds

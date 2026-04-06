@@ -1,5 +1,6 @@
 import ctypes
 import math
+import os
 import urllib.parse
 
 import skia
@@ -27,6 +28,7 @@ from element import Element
 from html_parser import HTMLParser
 from iframe_layout import IframeLayout
 from js_context import JSContext
+from protected_field import ProtectedField
 from task import Task
 from task_runner import TaskRunner
 from text import Text
@@ -35,6 +37,8 @@ from url import URL
 DEFAULT_STYLE_SHEET = CSSParser(open("browser.css").read()).parse()
 
 BROKEN_IMAGE = skia.Image.open("Broken_Image.png")
+
+USE_COMPOSITING = os.getenv("USE_COMPOSITING", "false").lower() == "true"
 
 
 class Tab:
@@ -122,7 +126,9 @@ class Tab:
 
         if self.needs_paint:
             self.display_list = []
+            self.browser.measure.time("paint")
             paint_tree(self.root_frame.document, self.display_list)
+            self.browser.measure.stop("paint")
             self.needs_paint = False
 
         self.browser.measure.stop("render")
@@ -186,8 +192,6 @@ class Tab:
         self.set_needs_render_all_frames()
 
     def run_animation_frame(self, scroll):
-        if not self.root_frame:
-            return
         if not self.root_frame.scroll_changed_in_frame:
             self.root_frame.scroll = scroll
 
@@ -205,8 +209,11 @@ class Tab:
                     value = animation.animate()
                     if value:
                         node.style[property_name].set(value)
-                        self.composited_updates.append(node)
-                        self.set_needs_paint()
+                        if USE_COMPOSITING and property_name == "opacity":
+                            self.composited_updates.append(node)
+                            self.set_needs_paint()
+                        else:
+                            frame.set_needs_layout()
 
             if frame.needs_style or frame.needs_layout:
                 needs_composite = True
@@ -242,7 +249,7 @@ class Tab:
             self.root_frame.url,
             scroll,
             root_frame_focused,
-            math.ceil(self.root_frame.document.height),
+            math.ceil(self.root_frame.document.height.get()),
             self.display_list,
             composited_updates,
             self.accessibility_tree,
@@ -318,6 +325,11 @@ class Frame:
             self.tab.needs_accessibility = True
             self.needs_paint = True
             self.needs_layout = False
+
+        clamped_scroll = self.clamp_scroll(self.scroll)
+        if clamped_scroll != self.scroll:
+            self.scroll_changed_in_frame = True
+        self.scroll = clamped_scroll
 
     def load(self, url, payload=None):
         self.loaded = False
@@ -513,12 +525,12 @@ class Frame:
             self.tab.load(url, body)
 
     def keypress(self, char):
-        if self.focus and self.focus.tag == "input":
-            if "value" not in self.focus.attributes:
-                self.activate_element(self.focus)
-            if self.js.dispatch_event("keydown", self.focus):
+        if self.tab.focus and self.tab.focus.tag == "input":
+            if "value" not in self.tab.focus.attributes:
+                self.activate_element(self.tab.focus)
+            if self.js.dispatch_event("keydown", self.tab.focus, self.window_id):
                 return
-            self.focus.attributes["value"] += char
+            self.tab.focus.attributes["value"] += char
             self.set_needs_render()
         elif self.tab.focus and "contenteditable" in self.tab.focus.attributes:
             text_nodes = [
@@ -542,7 +554,7 @@ class Frame:
         self.scroll_changed_in_frame = True
 
     def clamp_scroll(self, scroll):
-        height = math.ceil(self.document.height + 2 * VSTEP)
+        height = math.ceil(self.document.height.get() + 2 * VSTEP)
         maxscroll = height - self.frame_height
         return max(0, min(scroll, maxscroll))
 
@@ -555,10 +567,10 @@ class Frame:
             return
         obj = objs[0]
 
-        if self.scroll < obj.y < self.scroll + self.frame_height:
+        if self.scroll < obj.y.get() < self.scroll + self.frame_height:
             return
 
-        new_scroll = obj.y - SCROLL_STEP
+        new_scroll = obj.y.get() - SCROLL_STEP
         self.scroll = self.clamp_scroll(new_scroll)
         self.scroll_changed_in_frame = True
         self.tab.set_needs_paint()
@@ -597,8 +609,12 @@ def paint_tree(layout_object, display_list):
     ):
         paint_tree(layout_object.node.frame.document, cmds)
     else:
-        for child in layout_object.children:
-            paint_tree(child, cmds)
+        if isinstance(layout_object.children, ProtectedField):
+            for child in layout_object.children.get():
+                paint_tree(child, cmds)
+        else:
+            for child in layout_object.children:
+                paint_tree(child, cmds)
 
     cmds = layout_object.paint_effects(cmds)
     display_list.extend(cmds)

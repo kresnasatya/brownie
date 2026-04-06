@@ -73,18 +73,19 @@ class BlockLayout:
         self.parent = parent
         self.previous = previous
         self.frame = frame
-        self.children = ProtectedField(self, "children", self.parent)
-        self.x = ProtectedField(self, "x", self.parent)
+
+        self.children = ProtectedField(self, "children", self.parent, None, [])
+        self.x = ProtectedField(self, "x", self.parent, [self.parent.x])
         if self.previous:
             y_dependencies = [self.previous.y, self.previous.height]
         else:
             y_dependencies = [self.parent.y]
         self.y = ProtectedField(self, "y", self.parent, y_dependencies)
-        self.width = ProtectedField(self, "width", self.parent)
+        self.width = ProtectedField(self, "width", self.parent, [self.parent.width])
         self.height = ProtectedField(self, "height", self.parent)
+        self.zoom = ProtectedField(self, "zoom", self.parent, [self.parent.zoom])
+
         self.has_dirty_descendants = False
-        self.zoom = ProtectedField(self, "zoom", self.parent)
-        self.parent.zoom.invalidations.add(self.zoom)
 
     def __repr__(self):
         return f"BlockLayout({self.node}, mode={self.layout_mode()})"
@@ -123,7 +124,7 @@ class BlockLayout:
 
         mode = self.layout_mode()
         if mode == "block":
-            if self.children_dirty:
+            if self.children.dirty:
                 previous = None
                 children = []
                 for child in self.node.children:
@@ -158,30 +159,26 @@ class BlockLayout:
 
     def self_rect(self):
         return skia.Rect.MakeLTRB(
-            l=self.x,
-            t=self.y,
-            r=self.x + self.width,
-            b=self.y + self.height,
+            l=self.x.get(),
+            t=self.y.get(),
+            r=self.x.get() + self.width.get(),
+            b=self.y.get() + self.height.get(),
         )
 
     def paint(self):
-        assert not self.children_dirty
+        assert not self.children.dirty
         cmds = []
         bgcolor = self.node.style["background-color"].get()
         if bgcolor != "transparent":
-            radius = (
-                float(self.node.style["border-radius"].get()[:-2]),
-                self.zoom.get(),
-            )
+            radius = dpx(float(self.node.style["border-radius"].get()[:-2]), self.zoom.get())
             cmds.append(DrawRRect(self.self_rect(), radius, bgcolor))
         return cmds
 
     def word(self, node, word):
         zoom = self.zoom.read(notify=self.children)
-        style = self.children.read(node.style)
-        node_font = font(style, zoom, notify=self.children)
+        node_font = font(node.style, zoom, notify=self.children)
         w = node_font.measureText(word)
-        self.add_inline_child(node, w, TextLayout, word)
+        self.add_inline_child(node, w, TextLayout, word, self.frame)
 
     def new_line(self):
         self.previous_word = None
@@ -246,10 +243,9 @@ class BlockLayout:
 
     def iframe(self, node):
         zoom = self.zoom.read(notify=self.children)
+        w = IFRAME_WIDTH_PX + dpx(2, zoom)
         if "width" in self.node.attributes:
             w = dpx(int(self.node.attributes["width"]), zoom)
-        else:
-            w = IFRAME_WIDTH_PX + dpx(2, zoom)
         self.add_inline_child(node, w, IframeLayout, frame=self.frame)
 
     def input(self, node):
@@ -297,12 +293,11 @@ class BlockLayout:
                 t for t in tree_to_list(self, []) if isinstance(t, TextLayout)
             ]
             if text_nodes:
-                cmds.append(DrawCursor(text_nodes[-1], text_nodes[-1].width))
+                cmds.append(DrawCursor(text_nodes[-1], text_nodes[-1].width.get()))
             else:
                 cmds.append(DrawCursor(self, 0))
 
         cmds = paint_visual_effects(self.node, cmds, self.self_rect())
-        paint_outline(self.node, cmds, self.self_rect(), self.zoom)
         return cmds
 
     def add_inline_child(self, node, w, child_class, word=None, frame=None):
@@ -310,13 +305,13 @@ class BlockLayout:
         if self.cursor_x + w > width:
             self.new_line()
         line = self.temp_children[-1]
-        previous_word = line.children[-1] if line.children else None
         if word:
-            child = child_class(node, word, line, previous_word)
-        elif frame:
-            child = child_class(node, line, previous_word, frame)
+            child = child_class(node, word, line, self.previous_word)
         else:
-            child = child_class(node, line, previous_word)
+            child = child_class(node, line, self.previous_word, frame)
         line.children.append(child)
+        self.previous_word = child
         zoom = self.zoom.read(notify=self.children)
-        self.cursor_x += w + font(node.style, zoom).measureText(" ")
+        self.cursor_x += w + font(node.style, zoom, notify=self.children).measureText(
+            " "
+        )

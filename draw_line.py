@@ -28,5 +28,5 @@ class DrawLine(PaintCommand):
 
 
 def DrawCursor(elt, offset):
-    x = elt.x + offset
-    return DrawLine(x, elt.y, x, elt.y + elt.height, "red", 1)
+    x = elt.x.get() + offset
+    return DrawLine(x, elt.y.get(), x, elt.y.get() + elt.height.get(), "red", 1)

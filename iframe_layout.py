@@ -5,6 +5,7 @@ from dom_utils import dpx, paint_outline, paint_visual_effects
 from draw_rrect import DrawRRect
 from embed_layout import EmbedLayout
 from transform import Transform
+from visual_effect import VisualEffect
 
 IFRAME_WIDTH_PX = 300
 IFRAME_HEIGHT_PX = 150
@@ -15,7 +16,9 @@ class IframeLayout(EmbedLayout):
         super().__init__(node, parent, previous, parent_frame)
 
     def layout(self):
-        super().layout()
+        if not self.layout_needed():
+            return
+        EmbedLayout.layout(self)
 
         width_attr = self.node.attributes.get("width")
         height_attr = self.node.attributes.get("height")
@@ -45,9 +48,12 @@ class IframeLayout(EmbedLayout):
         cmds = []
 
         rect = skia.Rect.MakeLTRB(
-            self.x, self.y, self.x + self.width, self.y + self.height
+            self.x.get(),
+            self.y.get(),
+            self.x.get() + self.width.get(),
+            self.y.get() + self.height.get(),
         )
-        bgcolor = self.node.style.get("background-color", "transparent")
+        bgcolor = self.node.style["background-color"].get()
         if bgcolor != "transparent":
             radius = dpx(
                 float(self.node.style.get("border-radius", "0px")[:-2]), self.zoom
@@ -57,27 +63,26 @@ class IframeLayout(EmbedLayout):
 
     def paint_effects(self, cmds):
         rect = skia.Rect.MakeLTRB(
-            self.x, self.y, self.x + self.width, self.y + self.height
+            self.x.get(),
+            self.y.get(),
+            self.x.get() + self.width.get(),
+            self.y.get() + self.height.get(),
         )
-        diff = dpx(1, self.zoom)
-        scroll = (
-            self.node.frame.scroll
-            if (self.node.frame and self.node.frame.loaded)
-            else 0
-        )
-        offset = (self.x + diff, self.y + diff - scroll)
-        cmds = [Transform(offset, rect, self.node, cmds)]
+        diff = dpx(1, self.zoom.get())
+        offset = (self.x.get() + diff, self.y.get() + diff)
+        cmds: list[VisualEffect] = []
+        cmds.append(Transform(offset, rect, self.node, cmds))
         inner_rect = skia.Rect.MakeLTRB(
-            self.x + diff,
-            self.y + diff,
-            self.x + self.width - diff,
-            self.y + self.height - diff,
+            self.x.get() + diff,
+            self.y.get() + diff,
+            self.x.get() + self.width.get() - diff,
+            self.y.get() + self.height.get() - diff,
         )
-        internal_cmds = cmds
+        internal_cmds: list[VisualEffect] = cmds
         internal_cmds.append(
             Blend(1.0, "destination-in", [DrawRRect(inner_rect, 0, "white")], None)
         )
         cmds = [Blend(1.0, "source-over", internal_cmds, self.node)]
-        paint_outline(self.node, cmds, rect, self.zoom)
+        paint_outline(self.node, cmds, rect, self.zoom.get())
         cmds = paint_visual_effects(self.node, cmds, rect)
         return cmds
