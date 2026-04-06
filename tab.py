@@ -16,6 +16,7 @@ from dom_utils import (
     WIDTH,
     absolute_bounds_for_obj,
     cascade_priority,
+    dirty_style,
     dpx,
     get_tabindex,
     is_focusable,
@@ -203,7 +204,7 @@ class Tab:
                 for property_name, animation in node.animations.items():
                     value = animation.animate()
                     if value:
-                        node.style[property_name] = value
+                        node.style[property_name].set(value)
                         self.composited_updates.append(node)
                         self.set_needs_paint()
 
@@ -459,12 +460,14 @@ class Frame:
             self.needs_focus_scroll = True
         if self.tab.focus:
             self.tab.focus.is_focused = False
+            dirty_style(self.tab.focus)
         if self.tab.focused_frame and self.tab.focused_frame != self:
             self.tab.focused_frame.set_needs_render()
         self.tab.focus = node
         self.tab.focused_frame = self
         if node:
             node.is_focused = True
+            dirty_style(node)
         self.set_needs_render()
 
     def activate_element(self, elt):

@@ -168,7 +168,7 @@ class BlockLayout:
     def word(self, node, word):
         zoom = self.zoom.read(notify=self.children)
         style = self.children.read(node.style)
-        node_font = font(style, zoom)
+        node_font = font(style, zoom, notify=self.children)
         w = node_font.measureText(word)
         self.add_inline_child(node, w, TextLayout, word)
 

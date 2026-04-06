@@ -4,7 +4,7 @@ import dukpy
 
 from block_layout import BlockLayout
 from css_parser import CSSParser
-from dom_utils import tree_to_list
+from dom_utils import dirty_style, tree_to_list
 from html_parser import HTMLParser
 from iframe_layout import IframeLayout
 from image_layout import ImageLayout
@@ -152,7 +152,7 @@ class JSContext:
         self.throw_if_cross_origin(frame)
         elt = self.handle_to_node[handle]
         elt.attributes["style"] = s
-        elt.style.mark()
+        dirty_style(elt)
         frame.set_needs_render()
 
     def setAttribute(self, handle, attr, value, window_id):

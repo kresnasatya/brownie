@@ -1,3 +1,4 @@
+from dom_utils import CSS_PROPERTIES
 from protected_field import ProtectedField
 
 
@@ -7,7 +8,9 @@ class Text:
         self.children = []
         self.parent = parent
         self.is_focused = False
-        self.style = ProtectedField()
+        self.style = self.style = dict(
+            [(property, ProtectedField(self, property)) for property in CSS_PROPERTIES]
+        )
         self.animations = {}
         self.layout_object = None
 

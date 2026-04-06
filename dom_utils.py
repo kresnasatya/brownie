@@ -79,17 +79,37 @@ INHERITED_PROPERTIES = {
     "color": "black",
 }
 
+CSS_PROPERTIES = {
+    "font-size": "inherit",
+    "font-weight": "inherit",
+    "font-style": "inherit",
+    "color": "inherit",
+    "opacity": "1.0",
+    "transition": "",
+    "transform": "none",
+    "mix-blend-mode": None,
+    "border-radius": "0px",
+    "overflow": "visible",
+    "outline": "none",
+    "background-color": "transparent",
+    "image-rendering": "auto",
+}
+
 
 def style(node, rules, frame):
-    if node.style.dirty:
-        old_style = node.style
-        new_style = {}
+    needs_style = any([field.dirty for field in node.style.values()])
+    if needs_style:
+        old_style = dict(
+            [(property, field.value) for property, field in node.style.items()]
+        )
+        new_style = CSS_PROPERTIES.copy()
 
         node.style.set(new_style)
         for property, default_value in INHERITED_PROPERTIES.items():
             if node.parent:
-                parent_style = node.parent.style.read(notify=node.style)
-                new_style[property] = parent_style[property]
+                parent_field = node.parent.style[property]
+                parent_value = parent_field.read(notify=node.style[property])
+                new_style[property] = parent_value
             else:
                 new_style[property] = default_value
         for media, selector, body in rules:
@@ -106,7 +126,8 @@ def style(node, rules, frame):
                 new_style[property] = value
         if new_style["font-size"].endswith("%"):
             if node.parent:
-                parent_font_size = node.parent.style["font-size"]
+                parent_field = node.parent.style["font-size"]
+                parent_font_size = parent_field.read(notify=node.style["font-size"])
             else:
                 parent_font_size = INHERITED_PROPERTIES["font-size"]
             node_pct = float(new_style["font-size"][:-1]) / 100
@@ -122,6 +143,9 @@ def style(node, rules, frame):
                     node.animations[property] = animation
                     new_style[property] = animation.animate()
 
+        for property, field in node.style.items():
+            field.set(new_style[property])
+
     for child in node.children:
         style(child, rules, frame)
 
@@ -132,19 +156,30 @@ def cascade_priority(rule):
 
 
 def paint_visual_effects(node, cmds, rect):
-    opacity = float(node.style.get("opacity", "1.0"))
-    blend_mode = node.style.get("mix-blend-mode")
-    translation = parse_transform(node.style.get("transform", ""))
+    opacity = float(node.style["opacity"].get())
+    blend_mode = node.style["mix-blend-mode"].get()
+    translation = parse_transform(node.style["transform"].get())
 
-    if node.style.get("overflow", "visible") == "clip":
+    if node.style["overflow"].get() == "clip":
+        border_radius = float(node.style["border-radius"].get()[:-2])
         if not blend_mode:
             blend_mode = "source-over"
-        border_radius = float(node.style.get("border-radius", "0px")[:-2])
-        cmds.append(
+        cmds = [
             Blend(
-                1.0, "destination-in", [DrawRRect(rect, border_radius, "white")], None
+                1.0,
+                "source-over",
+                cmds
+                + [
+                    Blend(
+                        1.0,
+                        "destination-in",
+                        [DrawRRect(rect, border_radius, "white")],
+                        None,
+                    )
+                ],
+                node,
             )
-        )
+        ]
 
     blend_op = Blend(opacity, blend_mode, cmds, node)
     node.blend_op = blend_op
@@ -262,13 +297,18 @@ def speak_text(text):
     print("SPEAK:", text)
 
 
-def font(style, zoom):
-    weight = style["font-weight"]
-    variant = style["font-style"]
+def font(css_style, zoom, notify):
+    weight = css_style["font-weight"].read(notify)
+    variant = css_style["font-style"].read(notify)
     size = None
     try:
-        size = float(style["font-size"][:-2]) * 0.75
+        size = float(css_style["font-size"].read(notify)[:-2]) * 0.75
     except ValueError:
         size = 16
     font_size = dpx(size, zoom)
     return get_font(font_size, weight, variant)
+
+
+def dirty_style(node):
+    for property, value in node.style.items():
+        value.mark()

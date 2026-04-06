@@ -30,8 +30,7 @@ class TextLayout:
 
     def layout(self):
         zoom = self.zoom.read(notify=self.font)
-        style = self.node.style.read(notify=self.font)
-        self.font.set(font(style, zoom))
+        self.font.set(font(self.node.style, zoom, notify=self.font))
 
         f = self.font.read(notify=self.width)
         self.width.set(f.measureText(self.word))
