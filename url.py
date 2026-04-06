@@ -76,9 +76,19 @@ class URL:
                         value = "true"
                     params[param.strip().casefold()] = value.casefold()
             COOKIE_JAR[self.host] = (cookie, params)
-        assert "transfer-encoding" not in response_headers
         assert "content-encoding" not in response_headers
-        body = response.read()
+        if response_headers.get("transfer-encoding") == "chunked":
+            body = b""
+            while True:
+                size_line = response.readline().decode("utf8").strip()
+                chunk_size = int(size_line, 16)
+                if chunk_size == 0:
+                    break
+                body += response.read(chunk_size)
+                response.read(2)  # consume trailing 
+
+        else:
+            body = response.read()
 
         s.close()
         return response_headers, body
@@ -108,3 +118,4 @@ class URL:
 
     def origin(self):
         return self.scheme + "://" + self.host + ":" + str(self.port)
+
