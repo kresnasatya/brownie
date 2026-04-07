@@ -64,5 +64,5 @@ class InputLayout(EmbedLayout):
 
     def paint_effects(self, cmds):
         cmds = paint_visual_effects(self.node, cmds, self.self_rect())
-        paint_outline(self.node, cmds, self.self_rect(), self.zoom)
+        paint_outline(self.node, cmds, self.self_rect(), self.zoom.get())
         return cmds
