@@ -199,9 +199,16 @@ def paint_visual_effects(node, cmds, rect) -> list[VisualEffect]:
 
 
 def add_parent_pointers(nodes, parent=None):
-    for node in nodes:
-        node.parent = parent
-        add_parent_pointers(node.children, node)
+    visited = set()
+    stack = [(nodes, parent)]
+    while stack:
+        current_nodes, current_parent = stack.pop()
+        for node in current_nodes:
+            if node in visited:
+                continue
+            visited.add(node)
+            node.parent = current_parent
+            stack.append((node.children, node))
 
 
 def parse_transition(value):
