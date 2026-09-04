@@ -31,8 +31,8 @@ class URL:
             ctx = ssl.create_default_context()
             s = ctx.wrap_socket(s, server_hostname=self.host)
         method = "POST" if payload else "GET"
-        request = "{} {} HTTP/1.0\r\n".format(method, self.path)
-        request += "Host: {}\r\n".format(self.host)
+        body = "{} {} HTTP/1.0\r\n".format(method, self.path)
+        body += "Host: {}\r\n".format(self.host)
         if self.host in COOKIE_JAR:
             cookie, params = COOKIE_JAR[self.host]
             allow_cookie = True
@@ -40,14 +40,16 @@ class URL:
                 if method != "GET":
                     allow_cookie = self.host == referrer.host
             if allow_cookie:
-                request += "Cookie: {}\r\n".format(cookie)
+                body += "Cookie: {}\r\n".format(cookie)
         if payload:
             length = len(payload.encode("utf8"))
-            request += "Content-Length: {}\r\n".format(length)
-        request += "\r\n"
+            body += "Content-Length: {}\r\n".format(length)
         if payload:
-            request += payload
+            content_length = len(payload.encode("utf8"))
+            body += "Content-Length: {}\r\n".format(content_length)
+        body += "\r\n" + (payload or "")
         s.send(request.encode("utf8"))
+
         response = s.makefile("b")
         statusline = response.readline().decode("utf8")
         version, status, explaination = statusline.split(" ", 2)
@@ -76,9 +78,9 @@ class URL:
             COOKIE_JAR[self.host] = (cookie, params)
         assert "transfer-encoding" not in response_headers
         assert "content-encoding" not in response_headers
-        content = response.read()
+        body = response.read()
         s.close()
-        return response_headers, content
+        return response_headers, body
 
     def __str__(self) -> str:
         port_part = ":" + str(self.port)
