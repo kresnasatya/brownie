@@ -18,13 +18,7 @@ class TextLayout:
 
     def layout(self):
         self.zoom = self.parent.zoom
-        weight = self.node.style["font-weight"]
-        style = self.node.style["font-style"]
-        if style == "normal":
-            style = "roman"
-        px_size = float(self.node.style["font-size"][:2])
-        size = dpx(px_size * 0.75, self.zoom)
-        self.font = get_font(size, weight, style)
+        self.font = font(self.node.style, self.zoom)
         self.width = self.font.measureText(self.word)
         if self.previous:
             space = self.previous.font.measureText(" ")
