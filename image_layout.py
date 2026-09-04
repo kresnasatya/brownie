@@ -11,11 +11,6 @@ class ImageLayout(EmbedLayout):
 
     def layout(self):
         super().layout()
-        self.width = dpx(self.node.image.width(), self.zoom)
-        self.img_height = dpx(self.node.image.height(), self.zoom)
-        self.height = max(self.img_height, linespace(self.font))
-        self.ascent = -self.height
-        self.descent = 0
         width_attr = self.node.attributes.get("width")
         height_attr = self.node.attributes.get("height")
         image_width = self.node.image.width()
@@ -35,6 +30,10 @@ class ImageLayout(EmbedLayout):
         else:
             self.width = dpx(image_width, self.zoom)
             self.img_height = dpx(image_height, self.zoom)
+        
+        self.height = max(self.img_height, linespace(self.font))
+        self.ascent = -self.height
+        self.descent = 0
 
     def paint(self):
         cmds = []
