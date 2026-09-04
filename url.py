@@ -42,9 +42,6 @@ class URL:
             if allow_cookie:
                 body += "Cookie: {}\r\n".format(cookie)
         if payload:
-            length = len(payload.encode("utf8"))
-            body += "Content-Length: {}\r\n".format(length)
-        if payload:
             content_length = len(payload.encode("utf8"))
             body += "Content-Length: {}\r\n".format(content_length)
         body += "\r\n" + (payload or "")
