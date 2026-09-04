@@ -155,13 +155,10 @@ class Tab:
             self.load(back)
 
     def keypress(self, char):
-        if self.focus and self.focus.tag == "input":
-            if "value" not in self.focus.attributes:
-                self.activate_element(self.focus)
-            if self.js.dispatch_event("keydown", self.focus):
-                return
-            self.focus.attributes["value"] += char
-            self.set_needs_render()
+        frame = self.focused_frame
+        if not frame:
+            frame = self.root_frame
+        frame.keypress(char)
 
     def zoom_by(self, increment):
         if increment > 0:
