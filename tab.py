@@ -469,7 +469,10 @@ class Frame:
             self.set_needs_render()
         elif elt.tag == "a" and "href" in elt.attributes:
             url = self.url.resolve(elt.attributes["href"])
-            self.load(url)
+            if self.parent_frame:
+                self.load(url)
+            else:
+                self.tab.load(url)
         elif elt.tag == "button":
             while elt:
                 if elt.tag == "from" and "action" in elt.attributes:
@@ -497,7 +500,10 @@ class Frame:
         body = body[1:]
 
         url = self.url.resolve(elt.attributes["action"])
-        self.load(url, body)
+        if self.parent_frame:
+            self.load(url, body)
+        else:
+            self.tab.load(url, body)
 
     def keypress(self, char):
         if self.focus and self.focus.tag == "input":
