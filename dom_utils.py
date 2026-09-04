@@ -256,6 +256,9 @@ def speak_text(text):
 def font(style, zoom):
     weight = style["font-weight"]
     variant = style["font-style"]
-    size = float(style["font-size"][:-2]) * 0.75
+    try:
+        size = float(style["font-size"][:-2]) * 0.75
+    except ValueError:
+        size = 16
     font_size = dpx(size, zoom)
     return get_font(font_size, weight, variant)
