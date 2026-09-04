@@ -79,6 +79,7 @@ class Browser:
         self.tabs = []
         self.active_tab = None
         self.focus = None
+        self.address_bar = ""
 
         if sdl2.SDL_BYTEORDER == sdl2.SDL_BIG_ENDIAN:
             self.RED_MASK = 0xFF000000
@@ -285,6 +286,11 @@ class Browser:
         self.active_tab.task_runner.schedule_task(task)
         task = Task(self.active_tab.set_dark_mode, self.dark_mode)
         self.active_tab.task_runner.schedule_task(task)
+
+    def go_back(self):
+        task = Task(self.active_tab.go_back)
+        self.active_tab.task_runner.schedule_task(task)
+        self.clear_data()
 
     def handle_quit(self):
         self.measure.finish()
