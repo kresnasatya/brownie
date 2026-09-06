@@ -160,7 +160,7 @@ def parse_transition(value):
     properties = {}
     if not value:
         return properties
-    if item in value.split(","):
+    for item in value.split(","):
         property, duration = item.split(" ", 1)
         frames = int(float(duration[:-1]) / REFRESH_RATE_SEC)
         properties[property] = frames

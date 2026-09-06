@@ -1,6 +1,6 @@
 import skia
 
-from dom_utils import dpx, get_font, linespace, paint_outline, paint_visual_effects
+from dom_utils import dpx, font, get_font, linespace, paint_outline, paint_visual_effects
 from draw_text import DrawText
 
 

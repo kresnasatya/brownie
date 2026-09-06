@@ -126,40 +126,6 @@ class BlockLayout:
     def flush(self):
         pass
 
-    def open_tag(self, tag):
-        # print("tag: ", tag)
-        if tag == "i":
-            self.style = "italic"
-        elif tag == "em":
-            self.style = "italic"
-        elif tag == "b":
-            self.weight = "bold"
-        elif tag == "strong":
-            self.weight = "bold"
-        elif tag == "small":
-            self.size -= 2
-        elif tag == "big":
-            self.size += 4
-        elif tag == "br":
-            self.flush()
-
-    def close_tag(self, tag):
-        if tag == "i":
-            self.style = "roman"
-        elif tag == "em":
-            self.style = "roman"
-        elif tag == "b":
-            self.weight = "normal"
-        elif tag == "strong":
-            self.weight = "normal"
-        elif tag == "small":
-            self.size += 2
-        elif tag == "big":
-            self.size -= 4
-        elif tag == "p":
-            self.flush()
-            self.cursor_y += VSTEP
-
     def recurse(self, node):
         if isinstance(node, Text):
             for word in node.text.split():

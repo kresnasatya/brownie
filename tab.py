@@ -174,7 +174,6 @@ class Tab:
         self.scroll_changed_in_tab = True
         self.scroll /= self.zoom
         self.zoom = 1
-        self.scroll_changed_in_tab = True
         self.set_needs_render_all_frames()
 
     def run_animation_frame(self, scroll):
@@ -293,7 +292,7 @@ class Frame:
 
     def set_needs_layout(self):
         self.needs_layout = True
-        self.tab.needs_accesibility = True
+        self.tab.needs_accessibility = True
         self.tab.set_needs_paint()
 
     def render(self):
@@ -472,7 +471,7 @@ class Frame:
                 self.tab.load(url)
         elif elt.tag == "button":
             while elt:
-                if elt.tag == "from" and "action" in elt.attributes:
+                if elt.tag == "form" and "action" in elt.attributes:
                     self.submit_form(elt)
                 elt = elt.parent
 

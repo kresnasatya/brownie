@@ -45,7 +45,7 @@ class URL:
             content_length = len(payload.encode("utf8"))
             body += "Content-Length: {}\r\n".format(content_length)
         body += "\r\n" + (payload or "")
-        s.send(request.encode("utf8"))
+        s.send(body.encode("utf8"))
 
         response = s.makefile("b")
         statusline = response.readline().decode("utf8")
