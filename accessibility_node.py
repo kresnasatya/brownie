@@ -129,7 +129,7 @@ class AccessibilityNode:
     def absolute_bounds(self):
         abs_bounds = []
         for bound in self.bounds:
-            abs_bound = bound.makeOff(0.0, 0.0)
+            abs_bound = bound.makeOffset(0.0, 0.0)
             if isinstance(self, FrameAccessibilityNode):
                 obj = self.parent
             else:

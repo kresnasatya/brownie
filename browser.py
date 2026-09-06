@@ -274,7 +274,6 @@ class Browser:
         canvas.save()
         canvas.translate(0, self.chrome.bottom - self.active_tab_scroll)
         for item in self.draw_list:
-            print_tree(item)
             item.execute(canvas)
         canvas.restore()
 
@@ -503,7 +502,7 @@ class Browser:
         self.active_tab.task_runner.schedule_task(task)
 
     def reset_zoom(self):
-        task = Task(self.active_tab.rezet_zoom)
+        task = Task(self.active_tab.reset_zoom)
         self.active_tab.task_runner.schedule_task(task)
 
     def focus_addressbar(self):

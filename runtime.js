@@ -115,7 +115,7 @@ window.__runSetTimeout = function (handle) {
 
 window.RAF_LISTENERS = [];
 
-window.requestAnimationFramefunction = function (fn) {
+window.requestAnimationFrame = function (fn) {
   window.RAF_LISTENERS.push(fn);
   call_python("requestAnimationFrame");
 };
